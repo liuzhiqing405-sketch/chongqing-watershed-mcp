@@ -1,7 +1,8 @@
-# Research data access
+# Data access
 
 Version 1.0 supports study areas within Chongqing Municipality, China.
-ERA5 and CLCD are the two open inputs used in the study and documented here.
+This directory provides an ERA5 precipitation sample, a reference river layer
+and download links for ERA5 and CLCD.
 Original providers retain their respective terms and attribution requirements.
 
 | Dataset | Access | Material supplied here |
