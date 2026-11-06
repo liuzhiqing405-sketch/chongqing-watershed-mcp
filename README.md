@@ -69,8 +69,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\start_agent_latest
 ```
 
 Open <http://127.0.0.1:8780>. For live language-model interaction, enter your
-own API endpoint, model identifier and key in the model settings. The key is
-held in process memory. The web interface is in Chinese. The numerical example
+own API endpoint, model identifier and key in the model settings. Supported formats include OpenAI Chat Completions, OpenAI Responses, Anthropic Messages and Gemini GenerateContent. The key is
+held in process memory. The web interface and new sessions default to English. Geographic names and data fields can retain their source spelling. The numerical example
 above can be run independently of the web interface.
 
 ## Release status

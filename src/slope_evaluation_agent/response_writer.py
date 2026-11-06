@@ -140,7 +140,7 @@ def find_forbidden(text: str) -> list[str]:
 
 
 def describe_gate_error(error: WorkflowGateError, session: AgentSession) -> str:
-    return sanitize(f"{error}\n\n当前可以做的事：{pending_action(session.state)}")
+    return sanitize(f"{error}\n\nNext action: {pending_action(session.state)}")
 
 
 def describe_mcp_error(error: Exception) -> str:
@@ -148,7 +148,7 @@ def describe_mcp_error(error: Exception) -> str:
     message = getattr(error, "user_message", None)
     text = message() if callable(message) else str(error)
     if "Traceback" in text or 'File "' in text:
-        text = "调用 MCP 服务时发生错误。"
+        text = "The engineering service returned an error."
     return sanitize(text)
 
 
@@ -161,18 +161,18 @@ def describe_data_check(payload: dict[str, Any]) -> str:
     warnings = list(data.get("warnings") or [])
     years = data.get("rainfall_years") or []
     if payload.get("ok"):
-        lines = ["基础数据检查通过。"]
+        lines = ["Input data checks passed."]
         if years:
             lines.append(f"逐时降雨资料覆盖 {years[0]}–{years[-1]} 年，共 {len(years)} 年。")
         for warning in warnings:
             lines.append(f"注意：{warning}")
-        lines.append("下一步可以给出河流名称，或直接提供出水口经纬度。")
+        lines.append("Enter a river name or outlet coordinates.")
         return sanitize("\n".join(lines))
-    lines = ["基础数据检查未通过："]
+    lines = ["Input data checks failed:"]
     lines += [f"- {item}" for item in errors[:6]]
     if len(errors) > 6:
         lines.append(f"- 另有 {len(errors) - 6} 项")
-    lines.append("请先补齐缺失或被占用的数据，再继续。")
+    lines.append("Check the missing or inaccessible inputs before continuing.")
     return sanitize("\n".join(lines))
 
 
@@ -208,9 +208,9 @@ def describe_review(review: dict[str, Any], *, brief: bool = False) -> str:
         allowed = (drawn_modeling_allowed(qa, review.get('assessment_mode'))
                    if review.get('selection_mode') == 'drawn_study_area' else qa.get('passed'))
         if allowed:
-            return f'评价范围已保存，面积 {_fmt(qa.get("area_km2"), " km²", digits=3)}。请核对地图后回复「确认」。'
-        errors = qa.get('errors') or (qa.get('modeling_check') or {}).get('errors') or ['请调整范围后重新检查。']
-        return sanitize('边界检查未通过，不能确认或计算：' + '；'.join(str(e) for e in errors[:3]))
+            return f'Study area saved. Area: {_fmt(qa.get("area_km2"), " km²", digits=3)}. Review the map and reply “confirm boundary”.'
+        errors = qa.get('errors') or (qa.get('modeling_check') or {}).get('errors') or ['Adjust the area and check it again.']
+        return sanitize('The boundary failed its checks. Confirmation and calculation are blocked: ' + '；'.join(str(e) for e in errors[:3]))
     if review.get("selection_mode")=="drawn_study_area":
         from watershed_exchange.domain_policy import drawn_modeling_allowed
         policy=qa.get("modeling_check") or {}
@@ -644,7 +644,7 @@ def describe_capabilities(payload: dict[str, Any]) -> str:
 def describe_unknown(session: AgentSession, text: str) -> str:
     return sanitize(
         "我没有理解这个请求。\n"
-        f"当前可以做的事：{session.pending_action()}\n"
+        f"Next action: {session.pending_action()}\n"
         f"（原始输入：{text[:60]}）"
     )
 
@@ -660,7 +660,7 @@ def describe_missing_fields(intent: Intent, session: AgentSession) -> str:
     if intent is Intent.SET_RAINFALL_PERIOD:
         return sanitize("请说明降雨事件：指定日期（例如 2024-07-30 全天）或时段，"
                         "也可以回复「用历史最大日」。")
-    return sanitize(f"请补充信息。当前可以做的事：{session.pending_action()}")
+    return sanitize(f"请补充信息。Next action: {session.pending_action()}")
 
 
 def stamp_limitations(lines: list[str]) -> list[str]:

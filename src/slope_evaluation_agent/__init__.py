@@ -25,9 +25,9 @@ __version__ = "1.0"
 
 #: The only accurate description of what this system does. Used verbatim by the
 #: response writer so the scope cannot drift between releases.
-SCOPE_STATEMENT = "区域尺度、降雨事件驱动的坡面稳定性初步筛查与诊断智能体"
+SCOPE_STATEMENT = "Preliminary regional screening and diagnosis of rainfall-driven slope stability"
 
 DISCLAIMER_ZH = (
-    "本系统给出的是区域尺度、降雨事件驱动的坡面稳定性初步筛查与诊断结果，"
-    "不是工程级边坡安全鉴定，不是灾害预报，也不是泥石流易发性评价。"
+    "The results describe preliminary regional screening under the modelled rainfall event. "
+    "Their scope excludes engineering safety certification, hazard forecasting and debris-flow susceptibility."
 )

@@ -65,7 +65,7 @@ def content_disposition(filename: str) -> str:
 
 
 class SessionCreateRequest(BaseModel):
-    language: str = Field(default="zh", pattern=r"^(?:zh|en)$")
+    language: str = Field(default="en", pattern=r"^(?:zh|en)$")
 
 
 class SessionBatchDeleteRequest(BaseModel):
@@ -519,7 +519,7 @@ def create_app(*, settings: AgentSettings | None = None,
             await runtime.agent.close()
 
     app = FastAPI(
-        title="重庆中小流域坡面稳定性评价智能体",
+        title="Chongqing Watershed Agent",
         version=__version__,
         docs_url="/api/docs",
         redoc_url=None,
@@ -539,7 +539,7 @@ def create_app(*, settings: AgentSettings | None = None,
             'concise_conversation': True,
             'grounded_result_reasoning': True,
             'readonly_artifact_investigation': True,
-            "scope": "区域尺度、降雨事件驱动的坡面稳定性初步筛查与诊断",
+            "scope": "Preliminary regional screening and diagnosis of rainfall-driven slope stability",
             "llm": {
                 "provider": llm.provider,
                 "model": llm.model,
@@ -745,7 +745,7 @@ def create_app(*, settings: AgentSettings | None = None,
                     "rainfall":"修改本任务的降雨事件","parameters":"修改本任务的参数"}[body.scope])
                 session.refresh_summary();runtime.agent.store.save(session)
                 if reply is None:
-                    reply=await runtime.agent._finish(session,"已保存修改前版本，并撤销相关下游状态。\n"+session.pending_action(),kind="question")
+                    reply=await runtime.agent._finish(session,"The previous revision was saved. Dependent workflow steps have been reset.\n"+session.pending_action(),kind="question")
                 session.record_turn("agent",reply.text);runtime.agent.store.save(session)
                 return {"reply":runtime.reply_view(reply),"session":runtime.session_view(session)}
         except SessionError as exc:

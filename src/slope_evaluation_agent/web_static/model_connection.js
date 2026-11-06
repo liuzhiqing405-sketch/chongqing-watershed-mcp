@@ -10,7 +10,7 @@
     grok: {label:'4Router Grok', format:'chat_completions'},
     gemini: {label:'4Router Gemini', format:'chat_completions'},
     qwen: {label:'4Router Qwen', format:'chat_completions'},
-    deepseek: {label:'DeepSeek直连', format:'chat_completions'}
+    deepseek: {label:'DeepSeek direct', format:'chat_completions'}
   };
   function status(text, error = false) {
     el('connection-status').textContent = text;
@@ -38,7 +38,7 @@
       allowed = ['none','minimal','low','medium','high','xhigh','max'];
     }
     const select = el('connection-effort'); select.replaceChildren();
-    select.add(new Option('默认，不额外指定', ''));
+    select.add(new Option('Provider default', ''));
     for (const effort of allowed) select.add(new Option(effort, effort));
     select.value = allowed.includes(value) ? value : '';
     el('connection-thinking-label').hidden = provider !== 'deepseek';
@@ -50,7 +50,7 @@
     el('connection-anthropic-budget').disabled = !manual;
     el('connection-anthropic-budget').setCustomValidity(manual &&
       Number(el('connection-anthropic-budget').value) >= Number(el('connection-tokens').value)
-      ? '思考预算必须小于生成token上限，为最终回答保留空间。' : '');
+      ? 'The thinking budget must leave room for the final answer.' : '');
     el('connection-qwen-thinking-label').hidden = provider !== 'qwen';
     el('connection-qwen-budget-label').hidden = provider !== 'qwen';
     el('connection-gemini-budget-label').hidden = provider !== 'gemini';
@@ -59,33 +59,33 @@
     const qwenBudget = el('connection-qwen-budget'), geminiBudget = el('connection-gemini-budget');
     qwenBudget.setCustomValidity(provider === 'qwen' && qwenBudget.value !== '' &&
       (select.value || el('connection-qwen-thinking').value === 'disabled')
-      ? '思考预算不能与effort同时指定，也不能在关闭思考时指定。' : '');
+      ? 'A thinking budget requires thinking to be enabled and cannot be combined with effort.' : '');
     geminiBudget.setCustomValidity(provider === 'gemini' && geminiBudget.value !== '' && select.value
-      ? 'Gemini思考预算与推理强度请二选一。' : '');
+      ? 'Choose either a Gemini thinking budget or reasoning effort.' : '');
     el('connection-qwen-thinking').setCustomValidity(provider === 'qwen' &&
       ((el('connection-qwen-thinking').value === 'disabled' && select.value && select.value !== 'none') ||
        (el('connection-qwen-thinking').value === 'enabled' && select.value === 'none'))
-      ? 'Qwen思考开关与所选强度冲突。' : '');
+      ? 'The selected Qwen thinking mode conflicts with reasoning effort.' : '');
     el('connection-stream-label').hidden = el('connection-format').value !== 'chat_completions';
     el('connection-help').textContent = anthropic
-      ? 'Claude的思考模式与effort独立。默认不额外指定；旧模型与新模型支持项不同。JSON通过提示词约束并由程序校验，不发送OpenAI的JSON参数。'
-      : '推理选项取决于所选模型。生成上限可能同时包含思考与最终回答；不支持的设置会在连接测试中报告。';
-    if (provider === 'grok') el('connection-help').textContent = 'Grok使用4Router兼容接口，可按通道选择Chat Completions或Responses。effort支持范围随模型变化；默认不额外指定。';
-    if (provider === 'gemini') el('connection-help').textContent = 'Gemini默认走4Router的Chat兼容入口；通道要求原生时可选GenerateContent。思考强度与预算二选一，关闭思考须模型支持。';
-    if (provider === 'qwen') el('connection-help').textContent = 'Qwen默认使用4Router兼容Chat和流式传输。思考开关、预算与effort按模型支持选择；旧模型思考时可能无法保证JSON格式。可用模型以4Router分组为准。';
+      ? 'Claude thinking and effort are independent and model-dependent. JSON is requested through the prompt and validated by the agent.'
+      : 'Options vary by model. The token limit may cover reasoning and the final answer. Test the connection to check your settings.';
+    if (provider === 'grok') el('connection-help').textContent = 'For Grok, choose Chat Completions or Responses according to your endpoint. Effort support varies by model.';
+    if (provider === 'gemini') el('connection-help').textContent = 'Gemini supports compatible Chat Completions and native GenerateContent. Choose either effort or a budget.';
+    if (provider === 'qwen') el('connection-help').textContent = 'Qwen defaults to streaming Chat Completions. Available models, thinking options and JSON support depend on your endpoint.';
     if (manual) el('connection-anthropic-budget').max = Math.max(1024, Number(el('connection-tokens').value) - 1);
   }
   function clearCandidates() {
     candidates = []; effortHints = {}; el('connection-models').replaceChildren();
-    el('connection-candidates').replaceChildren(new Option('请选择模型', ''));
+    el('connection-candidates').replaceChildren(new Option('Select a model', ''));
     el('connection-candidates-label').hidden = true;
   }
   function syncCandidates() {
     const model = el('connection-model').value.trim();
     el('connection-candidates').value = candidates.includes(model) ? model : '';
     el('connection-model-note').textContent = model && !candidates.includes(model)
-      ? `当前填写的 ${model} 不在本次返回列表中，请核对模型或选择候选项。`
-      : '选择只更新表单，点击“应用连接”才会切换；列表不保证生成通道可用。';
+      ? `${model} is absent from the returned list. Check the ID or choose a listed model.`
+      : 'Select Apply connection to use your changes. Test the model before relying on it.';
   }
   function modelFamily(model) {
     const name = model.toLowerCase().replace(/^models\//, '').replace(/^(google|x-ai|xai|alibaba|anthropic|openai|qwen)\//, '');
@@ -103,20 +103,20 @@
       el('connection-temperature').value = ''; el('connection-stream').checked = family === 'qwen';
       el('connection-qwen-thinking').value = 'default'; el('connection-qwen-budget').value = '';
       el('connection-gemini-budget').value = ''; effortOptions('');
-      status(`已匹配${profiles[family].label}及默认协议，请核对分组密钥并测试连接。`);
+      status(`Selected ${profiles[family].label} and its default format. Check the key and test the connection.`);
     }
     syncCandidates(); effortOptions();
   }
   function transportSupported() {
     const provider = el('connection-provider').value;
     if (['grok','gemini','qwen'].includes(provider) && !state?.supported_providers?.includes(provider)) {
-      status('当前后端尚未加载Grok、Gemini、Qwen适配，请使用已更新的服务。', true); return false;
+      status('Restart the updated service to use Grok, Gemini or Qwen.', true); return false;
     }
     if (el('connection-format').value === 'anthropic_messages' && !state?.supported_api_formats?.includes('anthropic_messages')) {
-      status('当前运行的后端尚未加载Claude接口支持，请使用已更新的服务后再测试或应用。', true); return false;
+      status('Restart the updated service before using the Claude API.', true); return false;
     }
     if (el('connection-format').value === 'gemini_generate_content' && !state?.supported_api_formats?.includes('gemini_generate_content')) {
-      status('当前后端尚未加载Gemini原生协议，请使用已更新的服务。', true); return false;
+      status('Restart the updated service before using native Gemini GenerateContent.', true); return false;
     }
     return true;
   }
@@ -145,9 +145,9 @@
       headers: {'Content-Type': 'application/json', 'X-Model-Connection-Token': token}, body: JSON.stringify(body)});
     const data = await response.json();
     if (!response.ok) {
-      const detail = typeof data.detail === 'string' ? data.detail : '模型连接操作失败。';
+      const detail = typeof data.detail === 'string' ? data.detail : 'Model connection failed.';
       // Works with an already-running older backend, preserving its memory key.
-      if (/http_503/i.test(detail)) throw new Error('中转站返回HTTP 503：本次生成请求未获服务。模型列表可读取不代表生成通道可用；请查看中转站该次请求的错误详情，确认模型通道、账户分组或上游状态。');
+      if (/http_503/i.test(detail)) throw new Error('The endpoint returned HTTP 503. Check the provider log, model access and upstream status.');
       throw new Error(detail);
     }
     return data;
@@ -164,14 +164,14 @@
   async function open() {
     try {
       const response = await fetch('/api/v1/model-connection');
-      if (!response.ok) throw new Error('当前服务尚无模型设置入口，请重启为最新版本。');
+      if (!response.ok) throw new Error('Model settings are unavailable. Restart the updated service.');
       state = await response.json(); token = state.form_token; effortHints = {};
       el('connection-url').value = state.base_url || 'https://4router.net/v1';
       el('connection-provider').value = state.provider || 'openai-compatible';
       el('connection-format').value = state.api_format || 'chat_completions';
       el('connection-model').value = state.model || '';
       el('connection-key').value = '';
-      el('connection-key').placeholder = state.credential_present ? '地址未变时可留空沿用；切换地址请提供新密钥' : '填写本服务的API密钥';
+      el('connection-key').placeholder = state.credential_present ? 'Leave blank to reuse the key for this URL' : 'Enter the API key for this endpoint';
       el('connection-thinking').value = state.deepseek_thinking || 'disabled';
       el('connection-anthropic-thinking').value = state.anthropic_thinking || 'default';
       el('connection-anthropic-budget').value = state.anthropic_thinking_budget_tokens || 1024;
@@ -186,7 +186,7 @@
       el('connection-timeout').value = state.request_timeout_s || 120;
       el('connection-json').checked = state.json_mode !== false;
       clearCandidates(); effortOptions(state.reasoning_effort || '');
-      status('可先读取模型列表，再测试连接；当前设置尚未改变。');
+      status('Fetch the models, then test the connection. Your current connection is unchanged.');
       dialog.showModal(); el('connection-url').focus();
     } catch (error) { alert(error.message); }
   }
@@ -205,7 +205,7 @@
     el('connection-qwen-thinking').value = 'default'; el('connection-qwen-budget').value = '';
     el('connection-gemini-budget').value = ''; el('connection-stream').checked = provider === 'qwen';
     clearCandidates(); effortOptions('');
-    status(`已填入${profiles[provider].label}默认地址和协议。同地址可留空沿用内存密钥；切换分组或地址时请填写对应密钥。`);
+    status(`Loaded the defaults for ${profiles[provider].label}. Provide a key when changing URL or access group.`);
   }
   el('model-chip').addEventListener('click', open);
   el('connection-close').addEventListener('click', () => { if (!pending) dialog.close(); });
@@ -247,67 +247,67 @@
     clearCandidates();
     if (el('connection-url').value.replace(/\/+$/, '') !== (state?.base_url || '').replace(/\/+$/, '')) {
       el('connection-model').value = ''; effortOptions('');
-      status('API地址已变更。请提供对应密钥，并重新选择模型。');
+      status('The API URL changed. Enter the corresponding key and select a model.');
     }
   });
   el('connection-list').addEventListener('click', () => {
     if (!transportSupported()) return;
     const body = payload();
-    action('正在读取模型列表…', async () => {
+    action('Fetching models…', async () => {
       const data = await request('/models', body); effortHints = data.reasoning_efforts || {};
       el('connection-models').replaceChildren();
       for (const id of data.models) { const option = document.createElement('option'); option.value = id; el('connection-models').append(option); }
       candidates = data.models;
-      el('connection-candidates').replaceChildren(new Option('请选择模型', ''));
+      el('connection-candidates').replaceChildren(new Option('Select a model', ''));
       for (const id of candidates) el('connection-candidates').add(new Option(id, id));
       el('connection-candidates-label').hidden = false; syncCandidates();
       const selected = el('connection-provider').value;
       const mismatch = candidates.length && !candidates.some(id => modelFamily(id) === selected);
       effortOptions();
-      if (mismatch) status(`已读取${candidates.length}个候选模型，但未识别到${profiles[selected].label}条目。请核对密钥分组；特殊别名可按服务商提供的ID手动填写。`, true);
-      else status(`已读取${data.models.length}个候选模型，请选择；是否可用以连接测试为准。`);
+      if (mismatch) status(`Fetched ${candidates.length} models. No ${profiles[selected].label} entry was identified. Check your access group or enter a provider model ID.`, true);
+      else status(`Fetched ${data.models.length} models. Select one and test the connection.`);
     });
   });
   el('connection-check').addEventListener('click', () => {
     if (!transportSupported() || !form.reportValidity()) return;
     const body = payload();
-    action('正在检查连接和基础意图理解；不会启动计算…', async () => {
+    action('Testing the connection and basic intents…', async () => {
       const data = await request('/check', body);
       const model = data.response_model && data.response_model !== data.model
-        ? `${data.model}（接口返回：${data.response_model}）` : (data.response_model || data.model);
+        ? `${data.model} (API returned ${data.response_model})` : (data.response_model || data.model);
       if (data.workflow_compatible === false) {
-        const names = {greeting: '问候', engineering_question: '工程原理提问'};
+        const names = {greeting: 'greeting', engineering_question: 'engineering question'};
         const failed = (data.routing_checks || []).find(check => !check.passed);
-        const scope = names[failed?.name] || '基础意图';
+        const scope = names[failed?.name] || 'basic intent';
         const reasons = {
-          transport_error: '请求或响应处理发生异常，尚不能据此判断模型是否理解。',
-          response_truncated: '模型回答未完整返回，请核对生成上限和通道输出限制。',
-          empty_response: '模型没有返回可用正文。',
-          invalid_json: '模型正文未能解析为JSON对象。',
-          invalid_response: '接口响应结构不符合所选协议。',
-          invalid_route_schema: 'JSON可解析，但意图字段不符合本项目的格式要求。',
-          unexpected_conversation_route: '模型给出的意图与本次检查的预期不符。',
-          unexpected_tool_call: '模型返回了工具请求，未执行该请求。',
-          model_decision_refused: '模型提出了只能由用户确认的操作，已被拒绝。',
-          request_failed: '模型服务未正常完成这次请求。'
+          transport_error: 'A transport or response error prevented the intent check.',
+          response_truncated: 'The response was truncated. Check the token limit and endpoint limits.',
+          empty_response: 'The model returned no usable text.',
+          invalid_json: 'The response could not be parsed as a JSON object.',
+          invalid_response: 'The response did not match the selected API format.',
+          invalid_route_schema: 'The intent fields did not match the expected schema.',
+          unexpected_conversation_route: 'The model returned an unexpected intent.',
+          unexpected_tool_call: 'The check declined an unexpected tool request.',
+          model_decision_refused: 'The check declined an operation requiring user confirmation.',
+          request_failed: 'The model request failed.'
         };
         const reason = reasons[failed?.reason] || (/^http_\d{3}$/.test(failed?.reason || '')
-          ? `意图请求返回HTTP ${failed.reason.slice(5)}，请核对服务商记录。`
-          : '未获得符合要求的模型意图输出。');
-        status(`基础JSON请求成功：${model}；${scope}检查未通过。${reason}本次测试未切换当前连接。`, true);
+          ? `Intent request returned HTTP ${failed.reason.slice(5)}. Check the provider log.`
+          : 'The model returned no valid intent.');
+        status(`JSON request passed for ${model}. The ${scope} check failed. ${reason} The current connection is unchanged.`, true);
       } else if (data.workflow_compatible === true) {
-        status(`连接和基础意图检查通过：${model}。具体工作流仍需任务验证；尚未切换当前连接。`);
+        status(`Connection and basic intent checks passed for ${model}. Apply the connection to use it.`);
       } else {
-        status(`基础JSON连接测试通过：${model}。当前运行版本尚未检查意图理解；应用新版服务后可进一步验证，当前连接尚未改变。`);
+        status(`JSON connection test passed for ${model}. This service did not test intent routing.`);
       }
     });
   });
   form.addEventListener('submit', event => {
     event.preventDefault(); if (!transportSupported() || !form.reportValidity()) return;
     const body = payload();
-    action('正在应用连接…', async () => {
+    action('Applying connection…', async () => {
       state = await request('', body); el('connection-key').value = '';
-      status(`已应用：${state.model}。后续消息使用此连接；配置和密钥仅保留在当前服务内存。`);
+      status(`Connected to ${state.model}. The settings and key are held in memory.`);
       if (typeof health === 'function') await health();
     });
   });

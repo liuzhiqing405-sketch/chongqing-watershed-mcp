@@ -242,7 +242,7 @@ class SessionStore:
         return self.directory(session_id) / "final_assessment.json"
 
     # ----------------------------------------------------------------- create
-    def create(self, *, language: str = "zh", session_id: str | None = None) -> AgentSession:
+    def create(self, *, language: str = "en", session_id: str | None = None) -> AgentSession:
         identifier = validate_session_id(session_id) if session_id else new_session_id()
         directory = self.directory(identifier)
         if directory.exists():
@@ -306,7 +306,7 @@ class SessionStore:
             ), "")
             summary = str(payload.get("conversation_summary") or "").strip()
             river_name = str(payload.get("river_name") or "").strip()
-            title = summary or river_name or first_user_text or "新会话"
+            title = summary or river_name or first_user_text or "New session"
             rows.append({
                 "session_id": payload.get("session_id", directory.name),
                 "state": payload.get("state"),

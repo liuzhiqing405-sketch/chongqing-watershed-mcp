@@ -370,7 +370,7 @@ class AgentSession(BaseModel):
     state: str
     created_at: str = Field(default_factory=_now)
     updated_at: str = Field(default_factory=_now)
-    language: Literal["zh", "en"] = "zh"
+    language: Literal["zh", "en"] = "en"
 
     intent: str | None = None
     river_name: str | None = None

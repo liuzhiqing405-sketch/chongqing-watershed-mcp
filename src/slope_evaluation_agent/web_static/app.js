@@ -17,14 +17,14 @@ let historyDeleting = false;
 const selectedHistory = new Set();
 
 const stateLabels = {
-  new: '新会话', needs_location: '等待评价位置', outlet_candidates_ready: '等待地图选择',
-  watershed_delineated: '边界已保存', awaiting_watershed_confirmation: '等待人工确认',
-  watershed_qa_failed: '空间检查未通过',
-  watershed_rejected: '流域已拒绝', watershed_confirmed: '流域已确认', rainfall_ready: '降雨已准备',
-  model_inputs_ready: '模型输入已准备', hydro_input_imported: '水文输入已导入',
-  hydro_input_validated: '水文输入已验证', hydro_planned: '计算方案待确认', hydro_running: '计算中',
-  hydro_succeeded: '计算成功', hydro_qa_failed: '质量门槛未通过', hydro_failed: '计算失败',
-  hydro_cancelled: '计算已取消', assessment_ready: '评价已生成'
+  new: 'New session', needs_location: 'Waiting for location', outlet_candidates_ready: 'Waiting for map selection',
+  watershed_delineated: 'Boundary saved', awaiting_watershed_confirmation: 'Waiting for confirmation',
+  watershed_qa_failed: 'Spatial checks failed',
+  watershed_rejected: 'Boundary rejected', watershed_confirmed: 'Boundary confirmed', rainfall_ready: 'Rainfall ready',
+  model_inputs_ready: 'Model inputs ready', hydro_input_imported: 'Hydrology inputs imported',
+  hydro_input_validated: 'Hydrology inputs validated', hydro_planned: 'Run plan ready for review', hydro_running: 'Running',
+  hydro_succeeded: 'Run completed', hydro_qa_failed: 'Quality checks failed', hydro_failed: 'Run failed',
+  hydro_cancelled: 'Run cancelled', assessment_ready: 'Assessment ready'
 };
 const stateProgress = {
   new: 0, needs_location: 4, outlet_candidates_ready: 12, watershed_delineated: 25,
@@ -40,7 +40,7 @@ async function api(url, options = {}) {
   const response = await fetch(url, options);
   let data = {};
   try { data = await response.json(); } catch { /* non-json error */ }
-  if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : `请求失败（${response.status}）`);
+  if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : `Request failed (${response.status})`);
   return data;
 }
 
@@ -51,7 +51,7 @@ function message(text, role = 'assistant', kind = 'message', meta = null) {
   $('.bubble', node).textContent = text;
   if (meta && role !== 'user' && meta.spatial_qa_passed === false) {
     const tags = document.createElement('div'); tags.className = 'reply-meta';
-    const quality = document.createElement('span'); quality.textContent = '空间质量检查未通过';
+    const quality = document.createElement('span'); quality.textContent = 'Spatial quality checks failed';
     tags.append(quality);
     $('.bubble', node).append(tags);
   }
@@ -68,13 +68,13 @@ function message(text, role = 'assistant', kind = 'message', meta = null) {
 function typing() {
   const node = message('', 'assistant');
   const bubble = $('.bubble', node); bubble.classList.add('typing');
-  bubble.innerHTML = '<span class="typing-label">正在理解你的问题…</span><span class="typing-dots"><i></i><i></i><i></i></span>';
+  bubble.innerHTML = '<span class="typing-label">Reading your message…</span><span class="typing-dots"><i></i><i></i><i></i></span>';
   const label = $('.typing-label', bubble);
   // Two phases, and the second one only says what is actually true: the wait
   // is longer than reading a sentence takes, so it may involve a computation.
   // Nothing here claims a tool ran when the turn was conversation.
   const slow = setTimeout(() => {
-    label.textContent = '正在处理…如果这一步要计算或出图，会久一些。';
+    label.textContent = 'Working… Calculations and maps may take longer.';
   }, 2000);
   return () => { clearTimeout(slow); node.remove(); };
 }
@@ -83,7 +83,7 @@ function addImages(node, images, skipUrls = null) {
   for (const image of images || []) {
     if (skipUrls && skipUrls.has(image.url)) continue;
     const figure = document.createElement('figure'); figure.className = 'reply-figure';
-    const element = document.createElement('img'); element.src = image.url; element.alt = '智能体生成的过程图件'; element.loading = 'lazy';
+    const element = document.createElement('img'); element.src = image.url; element.alt = 'Workflow figure'; element.loading = 'lazy';
     figure.append(element); $('.bubble', node).append(figure);
   }
 }
@@ -93,32 +93,32 @@ function addImages(node, images, skipUrls = null) {
 // is the difference between opening it in a viewer and opening it in a engine.
 const FORMAT_LABELS = {
   geotiff: 'GeoTIFF', csv: 'CSV', tsv: 'TSV', xlsx: 'Excel', zip: 'ZIP',
-  inp: 'INP', rpt: 'RPT', out: 'OUT（SWMM 二进制）', png: 'PNG', pdf: 'PDF',
-  json: 'JSON', geojson: 'GeoJSON', shp: 'Shapefile', markdown: '说明文档',
-  text: '文本', binary: '文件'
+  inp: 'INP', rpt: 'RPT', out: 'OUT (SWMM binary)', png: 'PNG', pdf: 'PDF',
+  json: 'JSON', geojson: 'GeoJSON', shp: 'Shapefile', markdown: 'Documentation',
+  text: 'Text', binary: 'File'
 };
 
 const ROLE_LABELS = {
-  source_raster: '来源栅格', source_table: '来源表格', model_input: 'SWMM 模型输入',
-  native_report: 'SWMM 运行报告', native_result: 'SWMM 原生结果', package: '成果包',
-  figure: '图件文件', vector: '矢量数据', metadata: '元数据', spreadsheet: '派生表格'
+  source_raster: 'Source raster', source_table: 'Source table', model_input: 'SWMM model input',
+  native_report: 'SWMM run report', native_result: 'Native SWMM result', package: 'Output bundle',
+  figure: 'Figure file', vector: 'Vector data', metadata: 'Metadata', spreadsheet: 'Derived table'
 };
 
-function formatLabel(format) { return FORMAT_LABELS[format] || String(format || '文件'); }
+function formatLabel(format) { return FORMAT_LABELS[format] || String(format || 'File'); }
 
 function artifactDetail(artifact) {
   const shape = artifact.rows != null
-    ? `${artifact.rows} 行 × ${artifact.column_count ?? '—'} 列` : null;
+    ? `${artifact.rows} rows × ${artifact.column_count ?? '—'} columns` : null;
   const rows = [
-    ['角色', ROLE_LABELS[artifact.role] || artifact.role || '—'],
-    ['大小', artifact.size_text || '—'],
-    ['单位', artifact.units || '不适用'],
-    ['坐标系', artifact.crs || '不适用'],
-    ['时间列', artifact.time_column || '不适用'],
-    ['表格规模', shape || '不适用'],
+    ['Role', ROLE_LABELS[artifact.role] || artifact.role || '—'],
+    ['Size', artifact.size_text || '—'],
+    ['Units', artifact.units || 'N/A'],
+    ['CRS', artifact.crs || 'N/A'],
+    ['Time column', artifact.time_column || 'N/A'],
+    ['Table dimensions', shape || 'N/A'],
     ['SHA-256', artifact.sha256_short ? `${artifact.sha256_short}…` : '—'],
-    ['质量门槛', artifact.qa_status === 'passed' ? '通过' : (artifact.diagnostic_only ? '未通过' : '未记录')],
-    ['来源阶段', artifact.stage_id || '—']
+    ['Quality checks', artifact.qa_status === 'passed' ? 'Passed' : (artifact.diagnostic_only ? 'Failed' : 'Not recorded')],
+    ['Source stage', artifact.stage_id || '—']
   ];
   const list = document.createElement('dl'); list.className = 'artifact-detail';
   for (const [term, value] of rows) {
@@ -135,10 +135,10 @@ function artifactRow(artifact) {
   const link = document.createElement('a');
   link.className = 'artifact-download';
   link.href = artifact.download_url; link.setAttribute('download', '');
-  link.textContent = `下载原始 ${formatLabel(artifact.format)} · ${artifact.size_text || '大小未知'}`;
+  link.textContent = `Download original ${formatLabel(artifact.format)} · ${artifact.size_text || 'Unknown size'}`;
   link.title = artifact.title || '';
   link.setAttribute('aria-label',
-    `下载 ${artifact.title || artifact.artifact_id}，格式 ${formatLabel(artifact.format)}`);
+    `Download ${artifact.title || artifact.artifact_id}, format ${formatLabel(artifact.format)}`);
   row.append(link);
 
   // Only formats the service says it can produce are offered. A greyed-out
@@ -146,7 +146,7 @@ function artifactRow(artifact) {
   for (const format of artifact.export_formats || []) {
     const generate = document.createElement('button');
     generate.type = 'button'; generate.className = 'artifact-generate';
-    generate.textContent = `生成 ${formatLabel(format)}`;
+    generate.textContent = `Generate ${formatLabel(format)}`;
     generate.addEventListener('click', () => generateThenDownload(
       generate, artifact, format));
     row.append(generate);
@@ -154,7 +154,7 @@ function artifactRow(artifact) {
 
   const info = document.createElement('button');
   info.type = 'button'; info.className = 'artifact-info-toggle';
-  info.textContent = '查看信息'; info.setAttribute('aria-expanded', 'false');
+  info.textContent = 'Details'; info.setAttribute('aria-expanded', 'false');
   const detail = artifactDetail(artifact); detail.hidden = true;
   info.addEventListener('click', () => {
     detail.hidden = !detail.hidden;
@@ -165,7 +165,7 @@ function artifactRow(artifact) {
   const details = document.createElement('div'); details.className = 'artifact-more';
   if (artifact.diagnostic_only) {
     const warn = document.createElement('p'); warn.className = 'artifact-warning';
-    warn.textContent = '仅供诊断，QA 未通过';
+    warn.textContent = 'Diagnostics only (quality checks failed)';
     details.append(warn);
   }
   details.append(detail);
@@ -184,29 +184,29 @@ function addArtifactList(node, artifacts) {
 
 async function generateThenDownload(button, artifact, format) {
   const label = button.textContent;
-  button.disabled = true; button.textContent = '正在生成…';
+  button.disabled = true; button.textContent = 'Generating…';
   try {
     const data = await api(
       `/api/v1/sessions/${encodeURIComponent(sessionId)}/artifacts/${encodeURIComponent(artifact.artifact_id)}/exports`,
       {method: 'POST', headers: {'Content-Type': 'application/json'},
        body: JSON.stringify({format})});
     const made = data.artifact;
-    if (!made) throw new Error('导出未返回成果');
+    if (!made) throw new Error('The export returned no file');
     triggerDownload(made.download_url);
     // The generated file replaces the button: it is a normal download from now
     // on, and re-deriving it would only repeat work the service already cached.
     const link = document.createElement('a');
     link.className = 'artifact-download';
     link.href = made.download_url; link.setAttribute('download', '');
-    link.textContent = `${formatLabel(made.format)} · ${made.size_text || '大小未知'}`;
+    link.textContent = `${formatLabel(made.format)} · ${made.size_text || 'Unknown size'}`;
     link.title = made.title || '';
     link.setAttribute('aria-label',
-      `下载生成的 ${made.title || made.artifact_id}，格式 ${formatLabel(made.format)}`);
+      `Download generated ${made.title || made.artifact_id}, format ${formatLabel(made.format)}`);
     button.replaceWith(link);
   } catch (error) {
     button.disabled = false; button.textContent = label;
     const note = document.createElement('p'); note.className = 'artifact-error';
-    note.textContent = `生成失败：${error.message}`;
+    note.textContent = `Export failed: ${error.message}`;
     button.closest('.artifact-row').append(note);
   }
 }
@@ -224,23 +224,23 @@ function addVisualizations(node, visualizations) {
     if (figure.preview && figure.preview.url) {
       const image = document.createElement('img');
       image.src = figure.preview.url;
-      image.alt = `图件：${figure.title || figure.kind || '过程图'}`;
+      image.alt = `Figure: ${figure.title || figure.kind || 'Workflow figure'}`;
       image.loading = 'lazy';
       wrapper.append(image);
       previewUrls.add(figure.preview.url);
     }
     const caption = document.createElement('figcaption');
     const name = document.createElement('strong');
-    name.textContent = figure.title || figure.kind || '图件';
+    name.textContent = figure.title || figure.kind || 'Figure';
     caption.append(name);
     if (figure.qa_failed) {
       const badge = document.createElement('span'); badge.className = 'qa-badge';
-      badge.textContent = 'QA 未通过（仅供诊断）';
+      badge.textContent = 'Quality checks failed (diagnostics only)';
       caption.append(badge);
     }
     wrapper.append(caption);
     const details = document.createElement('details'); details.className = 'figure-details';
-    const detailsTitle = document.createElement('summary'); detailsTitle.textContent = '图件说明与下载';
+    const detailsTitle = document.createElement('summary'); detailsTitle.textContent = 'Figure details and downloads';
     details.append(detailsTitle);
     for (const limitation of figure.limitations || []) {
       const line = document.createElement('small'); line.textContent = limitation;
@@ -249,14 +249,14 @@ function addVisualizations(node, visualizations) {
 
     if ((figure.artifacts || []).length) {
       const heading = document.createElement('p'); heading.className = 'artifact-heading';
-      heading.textContent = '成果文件（与这幅图对应的真实计算成果）：';
+      heading.textContent = 'Source outputs for this figure:';
       details.append(heading);
       const list = document.createElement('ul'); list.className = 'artifact-list';
       for (const artifact of figure.artifacts) list.append(artifactRow(artifact));
       details.append(list);
     } else {
       const none = document.createElement('p'); none.className = 'artifact-heading';
-      none.textContent = '这幅图没有可下载的登记成果。';
+      none.textContent = 'This figure has no registered files to download.';
       details.append(none);
     }
     wrapper.append(details);
@@ -269,12 +269,12 @@ function addSwmmSection(node, swmm) {
   if (!swmm || (!(swmm.artifacts || []).length && !swmm.bundle)) return;
   const details = document.createElement('details'); details.className = 'swmm-section';
   const summary = document.createElement('summary');
-  summary.textContent = `SWMM 建模成果（${(swmm.artifacts || []).length} 项）`;
+  summary.textContent = `SWMM model outputs (${(swmm.artifacts || []).length} files)`;
   details.append(summary);
 
   if (swmm.complete === false) {
     const warn = document.createElement('p'); warn.className = 'artifact-warning';
-    warn.textContent = `缺少必需文件：${(swmm.missing_required || []).join('、')}；这些成果不完整。`;
+    warn.textContent = `Required files missing: ${(swmm.missing_required || []).join(', ')}. The outputs are incomplete.`;
     details.append(warn);
   }
   const list = document.createElement('ul'); list.className = 'artifact-list';
@@ -282,7 +282,7 @@ function addSwmmSection(node, swmm) {
     const row = artifactRow(artifact);
     if (artifact.format === 'out') {
       const note = document.createElement('p'); note.className = 'artifact-note';
-      note.textContent = 'SWMM 原生二进制结果，需用 SWMM 引擎或解析器读取，不能当文本打开。';
+      note.textContent = 'Native SWMM binary output. Open it with SWMM or a compatible reader.';
       row.querySelector('.artifact-more').prepend(note);
     }
     list.append(row);
@@ -294,18 +294,18 @@ function addSwmmSection(node, swmm) {
     const link = document.createElement('a');
     link.className = 'artifact-download';
     link.href = swmm.bundle.download_url; link.setAttribute('download', '');
-    const bundleLabel = swmm.bundle_complete === false ? '诊断模型包 ZIP' : '完整模型包 ZIP';
-    link.textContent = `${bundleLabel} · ${swmm.bundle.size_text || '大小未知'}`;
+    const bundleLabel = swmm.bundle_complete === false ? 'Diagnostic model ZIP' : 'Complete model ZIP';
+    link.textContent = `${bundleLabel} · ${swmm.bundle.size_text || 'Unknown size'}`;
     if (swmm.bundle_complete === false) {
       const note = document.createElement('span'); note.className = 'qa-badge';
-      note.textContent = '不完整';
+      note.textContent = 'Incomplete';
       link.append(note);
     }
     bundleRow.append(link);
   } else {
     const make = document.createElement('button');
     make.type = 'button'; make.className = 'artifact-generate';
-    make.textContent = swmm.complete === false ? '生成诊断模型包 ZIP' : '生成完整模型包 ZIP';
+    make.textContent = swmm.complete === false ? 'Generate diagnostic model ZIP' : 'Generate complete model ZIP';
     make.addEventListener('click', () => bundleThenDownload(make, swmm.run_id));
     bundleRow.append(make);
   }
@@ -315,21 +315,21 @@ function addSwmmSection(node, swmm) {
 
 async function bundleThenDownload(button, runId) {
   const label = button.textContent;
-  button.disabled = true; button.textContent = '正在打包…';
+  button.disabled = true; button.textContent = 'Packaging…';
   try {
     const data = await api(
       `/api/v1/sessions/${encodeURIComponent(sessionId)}/runs/${encodeURIComponent(runId)}/swmm-bundle`,
       {method: 'POST'});
     const artifact = data.artifact;
-    if (!artifact) throw new Error('模型包未返回成果');
+    if (!artifact) throw new Error('The model bundle returned no file');
     triggerDownload(artifact.download_url);
     const complete = data.swmm ? data.swmm.bundle_complete !== false : true;
-    button.textContent = `${complete ? '完整模型包已生成' : '诊断模型包已生成'} · ${artifact.size_text || ''}`;
+    button.textContent = `${complete ? 'Complete model bundle ready' : 'Diagnostic model bundle ready'} · ${artifact.size_text || ''}`;
     button.disabled = false;
   } catch (error) {
     button.disabled = false; button.textContent = label;
     const note = document.createElement('p'); note.className = 'artifact-error';
-    note.textContent = `打包失败：${error.message}`;
+    note.textContent = `Packaging failed: ${error.message}`;
     button.closest('.bubble').append(note);
   }
 }
@@ -340,11 +340,11 @@ function addProcessArtifacts(node, artifacts) {
   const details = document.createElement('details');
   details.className = 'swmm-section process-artifacts-section';
   const summary = document.createElement('summary');
-  summary.textContent = `全部过程源文件（${items.length} 项，按原格式下载）`;
+  summary.textContent = `All workflow files (${items.length} files in original formats)`;
   details.append(summary);
   const note = document.createElement('p');
   note.className = 'artifact-note';
-  note.textContent = 'CSV 直接下载 CSV，GeoTIFF、JSON、报告和模型文件均保留生成时的原有格式。';
+  note.textContent = 'Files retain their original formats, including CSV, GeoTIFF, JSON, reports and models.';
   details.append(note);
   const list = document.createElement('ul');
   list.className = 'artifact-list';
@@ -358,7 +358,7 @@ function addSuggestions(node, suggestions) {
   if (!items.length) return;
   const box = document.createElement('div'); box.className = 'reply-suggestions';
   const hint = document.createElement('span'); hint.className = 'reply-suggestions-hint';
-  hint.textContent = '也可以这样回复：'; box.append(hint);
+  hint.textContent = 'Suggested replies:'; box.append(hint);
   for (const item of items) {
     const chip = document.createElement('button');
     chip.type = 'button'; chip.textContent = item;
@@ -385,7 +385,7 @@ function renderReply(reply) {
   if (reply.outlet_map) {
     const open = document.createElement('button');
     open.type = 'button'; open.textContent = reply.outlet_map.selection_mode === 'drawn_study_area'
-      ? '在 DEM 上绘制评价区域' : '在地图上选出水口';
+      ? 'Draw a study area on the DEM' : 'Select an outlet on the map';
     open.addEventListener('click', () => pickerApply(reply.outlet_map));
     $('.bubble', node).append(open);
     pickerApply(reply.outlet_map);
@@ -398,12 +398,12 @@ async function restoreArtifacts() {
   try {
     data = await api(`/api/v1/sessions/${encodeURIComponent(sessionId)}/artifacts`);
   } catch (error) {
-    console.warn('成果列表加载失败', error);
+    console.warn('Could not load outputs', error);
     return;
   }
   const figures = data.visualizations || [];
   if (!figures.length && !(data.process_artifacts || []).length && !data.swmm) return;
-  const node = message('本会话已生成的图件与可下载成果：', 'assistant', 'result');
+  const node = message('Figures and files from this session:', 'assistant', 'result');
   addVisualizations(node, figures);
   addProcessArtifacts(node, data.process_artifacts);
   addSwmmSection(node, data.swmm);
@@ -418,7 +418,7 @@ function updateSession(session) {
   $('#session-state').textContent = failedWatershed ? stateLabels.watershed_qa_failed
     : (stateLabels[session.state] || session.state);
   $('#pending-action').textContent = session.pending_action || '—';
-  $('#run-status').textContent = session.run_status || (session.has_run ? '等待状态' : '尚未提交');
+  $('#run-status').textContent = session.run_status || (session.has_run ? 'Waiting for status' : 'Not submitted');
   $('#session-summary').textContent = session.conversation_summary || '—';
   $('#cancel-run').hidden = session.state !== 'hydro_running';
   taskWorkspace=session.workspace||null;
@@ -430,7 +430,7 @@ function updateSession(session) {
   const progress = stateProgress[session.state] ?? 0;
   const thresholds = [1, 30, 52, 84, 100];
   const step=Math.max(1,thresholds.findIndex(value=>progress<=value)+1);
-  $('#progress-value').textContent = `步骤 ${step}/5`; $('#progress-bar').style.width = `${step/5*100}%`;
+  $('#progress-value').textContent = `Step ${step}/5`; $('#progress-bar').style.width = `${step/5*100}%`;
   document.querySelectorAll('#workflow-steps li').forEach((item, index) => {
     item.classList.toggle('done', progress > thresholds[index]);
     item.classList.toggle('active', progress <= thresholds[index] && (index === 0 || progress > thresholds[index - 1]));
@@ -439,10 +439,10 @@ function updateSession(session) {
 }
 
 function historyDate(value) {
-  if (!value) return '时间未知';
+  if (!value) return 'Unknown time';
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '时间未知';
-  return new Intl.DateTimeFormat('zh-CN', {
+  if (Number.isNaN(date.getTime())) return 'Unknown time';
+  return new Intl.DateTimeFormat('en-GB', {
     month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
   }).format(date);
 }
@@ -455,7 +455,7 @@ function renderHistory(items) {
   updateHistoryControls();
   if (!items.length) {
     const empty = document.createElement('p'); empty.className = 'history-empty';
-    empty.textContent = '还没有历史对话'; historyList.append(empty); return;
+    empty.textContent = 'No past conversations'; historyList.append(empty); return;
   }
   for (const item of items) {
     const row = document.createElement('div'); row.className = 'history-item';
@@ -467,7 +467,7 @@ function renderHistory(items) {
       checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.className = 'history-checkbox';
       checkbox.checked = selectedHistory.has(item.session_id); checkbox.disabled = historyDeleting;
       checkbox.dataset.sessionId = item.session_id;
-      checkbox.setAttribute('aria-label', `选择对话：${item.title || '新会话'}`);
+      checkbox.setAttribute('aria-label', `Select conversation: ${item.title || 'New session'}`);
       checkbox.addEventListener('change', () => {
         if (checkbox.checked) selectedHistory.add(item.session_id); else selectedHistory.delete(item.session_id);
         row.classList.toggle('selected', checkbox.checked); updateHistoryControls();
@@ -476,9 +476,9 @@ function renderHistory(items) {
     }
 
     const open = document.createElement('button'); open.type = 'button'; open.className = 'history-open';
-    const title = document.createElement('strong'); title.textContent = item.title || '新会话';
+    const title = document.createElement('strong'); title.textContent = item.title || 'New session';
     const meta = document.createElement('small');
-    meta.textContent = `${historyDate(item.updated_at)} · ${stateLabels[item.state] || item.state || '未知状态'}`;
+    meta.textContent = `${historyDate(item.updated_at)} · ${stateLabels[item.state] || item.state || 'Unknown status'}`;
     open.append(title, meta);
     open.addEventListener('click', async () => {
       if (busy || historyDeleting) return;
@@ -489,9 +489,9 @@ function renderHistory(items) {
     });
 
     const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'history-delete';
-    remove.textContent = '删除'; remove.setAttribute('aria-label', `删除对话：${item.title || item.session_id}`);
+    remove.textContent = 'Delete'; remove.setAttribute('aria-label', `Delete conversation: ${item.title || item.session_id}`);
     remove.addEventListener('click', async event => {
-      event.stopPropagation(); await deleteHistory(item.session_id, item.title || '这段对话');
+      event.stopPropagation(); await deleteHistory(item.session_id, item.title || 'this conversation');
     });
     row.append(open);
     if (!historyManaging) row.append(remove);
@@ -507,10 +507,10 @@ function historyStatus(text, isError = false) {
 function updateHistoryControls() {
   $('#history-toolbar').hidden = !historyManaging;
   const manage = $('#history-manage');
-  manage.textContent = historyManaging ? '完成' : '批量管理';
+  manage.textContent = historyManaging ? 'Done' : 'Select conversations';
   manage.setAttribute('aria-expanded', String(historyManaging));
   manage.disabled = historyDeleting || (!historyManaging && !historyItems.length);
-  $('#history-selected-count').textContent = `已选 ${selectedHistory.size} 段`;
+  $('#history-selected-count').textContent = `${selectedHistory.size} selected`;
   $('#history-delete-selected').disabled = historyDeleting || !selectedHistory.size;
   const all = $('#history-select-all');
   all.checked = historyItems.length > 0 && selectedHistory.size === historyItems.length;
@@ -524,25 +524,25 @@ async function loadHistory() {
     renderHistory(data.sessions || []);
     return true;
   } catch (error) {
-    historyStatus(`历史记录加载失败：${error.message}`, true); return false;
+    historyStatus(`Could not load history: ${error.message}`, true); return false;
   }
 }
 
 async function deleteSelectedHistory() {
   if (historyDeleting || !selectedHistory.size) return;
-  if (busy) { historyStatus('请等待当前操作完成后再删除。'); return; }
+  if (busy) { historyStatus('Wait for the current operation to finish before deleting.'); return; }
   try {
     const capabilities = await api('/api/v1/health');
     if (!capabilities.batch_session_product_cleanup) {
-      historyStatus('请重启 WebUI 并刷新页面，以启用批量删除及产物清理。', true); return;
+      historyStatus('Restart the web service and refresh the page to enable bulk deletion.', true); return;
     }
   } catch (error) { historyStatus(error.message, true); return; }
   const selected = historyItems.filter(item => selectedHistory.has(item.session_id));
   const identifiers = selected.map(item => item.session_id);
-  if (busy || !identifiers.length || !confirm(`确定永久删除所选 ${identifiers.length} 段历史对话及其产生的模型、结果和图件（含历史版本）吗？其他对话仍使用的产物和原始数据会保留。此操作不能撤销。`)) return;
+  if (busy || !identifiers.length || !confirm(`Permanently delete the ${identifiers.length} selected conversations and their models, results, figures and revisions? Shared files and original inputs are kept.`)) return;
   historyDeleting = true; busy = true; sendButton.disabled = true;
   renderHistory(historyItems); renderTaskWorkspace();
-  historyStatus(`正在删除 ${identifiers.length} 段对话并清理对应产物，请稍候…`);
+  historyStatus(`Deleting ${identifiers.length} conversations and their outputs…`);
   try {
     const result = await api('/api/v1/sessions/batch-delete', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -554,17 +554,17 @@ async function deleteSelectedHistory() {
     if (result.deleted.includes(sessionId)) {
       stopPoll(); localStorage.removeItem(storageKey); sessionId = null;
       try { await createSession(); }
-      catch { conversation.replaceChildren(); message('所选对话已删除。新会话未能创建，请刷新页面重试。', 'assistant', 'error'); }
+      catch { conversation.replaceChildren(); message('The selected conversations were deleted. Refresh the page to create a new session.', 'assistant', 'error'); }
     } else await loadHistory();
     const failed = result.failed || [];
     const retained = result.cleanup?.retained_ids?.length || 0;
-    let text = `已删除 ${result.deleted.length} 段对话及对应产物。`;
-    if (retained) text += ` ${retained} 项共享产物仍被其他任务使用，已保留。`;
+    let text = `Deleted ${result.deleted.length} conversations and their outputs.`;
+    if (retained) text += ` Kept ${retained} files shared with other tasks.`;
     if (failed.length) {
-      text += `\n${failed.length} 段未删除，可重试：`;
-      const names = new Map(selected.map(item => [item.session_id, item.title || '新会话']));
-      text += '\n' + failed.slice(0, 3).map(item => `${names.get(item.session_id) || '对话'}：${item.detail}`).join('\n');
-      if (failed.length > 3) text += `\n另有 ${failed.length - 3} 段未删除，仍保留选中状态。`;
+      text += `\n${failed.length} conversations could not be deleted. You can retry:`;
+      const names = new Map(selected.map(item => [item.session_id, item.title || 'New session']));
+      text += '\n' + failed.slice(0, 3).map(item => `${names.get(item.session_id) || 'Conversation'}: ${item.detail}`).join('\n');
+      if (failed.length > 3) text += `\n${failed.length - 3} other conversations remain selected for retry.`;
     } else { historyManaging = false; selectedHistory.clear(); }
     historyStatus(text, failed.length > 0);
   } catch (error) {
@@ -573,7 +573,7 @@ async function deleteSelectedHistory() {
       stopPoll(); localStorage.removeItem(storageKey); sessionId = null;
       try { await createSession(); } catch { /* A refresh can recreate the session. */ }
     }
-    historyStatus(`删除请求中断：${error.message}\n请核对列表，仍保留的对话可重新选择并重试。`, true);
+    historyStatus(`Deletion interrupted: ${error.message}\nReview the list and retry any conversations still present.`, true);
   } finally {
     historyDeleting = false; busy = false; sendButton.disabled = false;
     renderHistory(historyItems); renderTaskWorkspace();
@@ -585,13 +585,13 @@ async function deleteHistory(identifier, title) {
   try {
     const capabilities = await api('/api/v1/health');
     if (!capabilities.session_product_cleanup) {
-      message('当前 WebUI 尚未加载产物同步清理功能。请重启 WebUI 并刷新页面后再删除对话。', 'assistant', 'error');
+      message('Restart the web service and refresh the page before deleting a conversation.', 'assistant', 'error');
       return;
     }
   } catch (error) {
     message(error.message, 'assistant', 'error'); return;
   }
-  if (busy || !confirm(`确定永久删除“${title}”及本次对话产生的模型、结果和图件（含历史版本）吗？其他对话仍使用的产物和原始数据会保留。此操作不能撤销。`)) return;
+  if (busy || !confirm(`Permanently delete “${title}” and its models, results, figures and revisions? Shared files and original inputs are kept.`)) return;
   busy = true; sendButton.disabled = true;
   try {
     const result = await api(`/api/v1/sessions/${encodeURIComponent(identifier)}`, {method: 'DELETE'});
@@ -602,7 +602,7 @@ async function deleteHistory(identifier, title) {
       await loadHistory();
     }
     const retained = result.cleanup?.retained_ids?.length || 0;
-    if (retained) message(`对话已删除。${retained} 项产物仍被其他任务使用，已保留。`, 'assistant');
+    if (retained) message(`Conversation deleted. Kept ${retained} files shared with other tasks.`, 'assistant');
   } catch (error) {
     message(error.message, 'assistant', 'error');
   } finally {
@@ -613,26 +613,26 @@ async function deleteHistory(identifier, title) {
 async function health() {
   try {
     const data = await api('/api/v1/health');
-    $('#service-state').classList.add('ready'); $('#service-state span').textContent = 'Web 服务已就绪';
+    $('#service-state').classList.add('ready'); $('#service-state span').textContent = 'Web service ready';
     const chip = $('#model-chip');
     const llm = data.llm || {};
     const name = llm.response_model || llm.model;
-    const effort = llm.reasoning_effort ? ` · 推理 ${llm.reasoning_effort}` : (llm.deepseek_thinking ? ` · 思考${llm.deepseek_thinking === 'enabled' ? '开启' : '关闭'}` : '');
-    chip.textContent = llm.configured && name ? `${name}${effort} · 设置` : '模型未连接 · 设置';
-    chip.title = llm.configured ? `配置模型：${llm.model || '未指定'}\n${llm.response_model ? `接口返回模型：${llm.response_model}` : '尚未收到模型返回，当前显示连接配置'}\n点击设置模型连接` : (llm.reason || '点击设置模型连接');
+    const effort = llm.reasoning_effort ? ` · reasoning ${llm.reasoning_effort}` : (llm.deepseek_thinking ? ` · thinking ${llm.deepseek_thinking === 'enabled' ? 'on' : 'off'}` : '');
+    chip.textContent = llm.configured && name ? `${name}${effort} · Settings` : 'Model disconnected · Settings';
+    chip.title = llm.configured ? `Configured model: ${llm.model || 'unspecified'}\n${llm.response_model ? `Model reported by API: ${llm.response_model}` : 'Showing configuration before the first API response'}\nOpen model settings` : (llm.reason || 'Open model settings');
     chip.classList.toggle('ready', !!llm.configured);
   } catch (error) {
     $('#service-state').classList.remove('ready'); $('#service-state span').textContent = error.message;
-    $('#model-chip').classList.remove('ready'); $('#model-chip').textContent = '模型状态未知 · 设置';
+    $('#model-chip').classList.remove('ready'); $('#model-chip').textContent = 'Model status unknown · Settings';
   }
 }
 
 async function createSession() {
   const session = await api('/api/v1/sessions', {
-    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({language: 'zh'})
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({language: 'en'})
   });
   conversation.replaceChildren(); updateSession(session);
-  message('你好，可以直接问水文地质、地质灾害或工程原理。需要坡面稳定性分析时，可以先选择区县，在 DEM 地图上绘制评价范围；也可以描述河流或位置。我会核对范围，再逐步确认降雨条件并执行计算流程。');
+  message('Ask an engineering question or start an assessment. Select a district and draw the study area on the DEM, or enter outlet coordinates. Review the boundary and rainfall before running the model.');
   await loadHistory();
 }
 
@@ -646,7 +646,7 @@ async function restoreSession() {
         ? {answer_source: turn.answer_source, audit_scope: turn.answer_source === 'saved_task_context' ? 'task_context' : 'general_knowledge'} : null;
       message(turn.text, turn.role === 'user' ? 'user' : 'assistant', 'message', meta);
     }
-    if (!(session.conversation || []).length) message('会话已恢复。可以提问工程知识，或提供河流名称、出口经纬度开始评价。');
+    if (!(session.conversation || []).length) message('Session restored. Ask an engineering question or enter a river name or outlet coordinates.');
     // The transcript is text; the figures and their downloads are restored from
     // the session's own record, so a reloaded page can still hand over the files.
     await restoreArtifacts();
@@ -675,14 +675,14 @@ async function reconcile() {
   try {
     const data = await api(`/api/v1/sessions/${encodeURIComponent(sessionId)}/reconcile`, {method: 'POST'});
     if (data.reply) renderReply(data.reply); updateSession(data.session); await loadHistory();
-  } catch (error) { console.warn('状态刷新失败', error); schedulePoll(); }
+  } catch (error) { console.warn('Status refresh failed', error); schedulePoll(); }
 }
 
 function resizeInput() { input.style.height = 'auto'; input.style.height = `${Math.min(input.scrollHeight,150)}px`; }
 composer.addEventListener('submit', event => { event.preventDefault(); send(input.value); });
 input.addEventListener('input', resizeInput);
 input.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); composer.requestSubmit(); } });
-$('#new-session').addEventListener('click', async () => { if (!busy && confirm('新建会话不会删除旧会话，是否继续？')) await createSession(); });
+$('#new-session').addEventListener('click', async () => { if (!busy && confirm('Create a new session? Existing conversations will be kept.')) await createSession(); });
 $('#history-manage').addEventListener('click', () => {
   if (busy || historyDeleting) return;
   historyManaging = !historyManaging; selectedHistory.clear();
@@ -696,7 +696,7 @@ $('#history-select-all').addEventListener('change', event => {
 });
 $('#history-delete-selected').addEventListener('click', deleteSelectedHistory);
 $('#cancel-run').addEventListener('click', async () => {
-  if (!sessionId || busy || !confirm('确定取消当前计算任务？')) return;
+  if (!sessionId || busy || !confirm('Cancel the current run?')) return;
   busy = true;
   renderTaskWorkspace();
   try { const data = await api(`/api/v1/sessions/${encodeURIComponent(sessionId)}/cancel`, {method:'POST'}); renderReply(data.reply); updateSession(data.session); }
@@ -709,9 +709,9 @@ document.querySelectorAll('[data-action="scope"]').forEach(button => button.addE
   catch (error) { message(error.message, 'assistant', 'error'); }
 }));
 
-/* ---- 交互式选址：用户在地图上点选出水口 ---------------------------------- */
-/* 底图由空间 MCP 渲染，接口一并返回 bbox_wgs84（绘图区四边经纬度）与 axes_rect
-   （绘图区在整张图里的比例位置）。点击先归一化成整图比例，再裁到绘图区，
+/* ---- 交互式选址: 用户在地图上点选出水口 ---------------------------------- */
+/* 底图由空间 MCP 渲染，接口一并返回 bbox_wgs84（绘图区四边经纬度)与 axes_rect
+   （绘图区在整张图里的比例位置)。点击先归一化成整图比例，再裁到绘图区，
    最后线性插值成经纬度——没有底图瓦片，也不需要联网。 */
 const picker = {
   geo: null,
@@ -739,7 +739,7 @@ function pickerMark(position) {
   marker.hidden = false;
 }
 function pickerClear() {
-  /* 载入失败时必须把上一张图撤掉：留着旧底图会让用户在一块已经不是当前河流的
+  /* 载入失败时必须把上一张图撤掉: 留着旧底图会让用户在一块已经不是当前河流的
      图幅上点选，取回来的经纬度看着合理却对不上。 */
   picker.geo = null;
   picker.selected = null;
@@ -747,7 +747,7 @@ function pickerClear() {
   image.hidden = true;
   image.removeAttribute('src');
   $('#picker-mapwrap').classList.remove('has-map');
-  $('#picker-selected-text').textContent = '尚未选择';
+  $('#picker-selected-text').textContent = 'No point selected';
   $('#picker-selected-note').textContent = '';
   $('#picker-use').disabled = true;
   pickerMark(null);
@@ -781,16 +781,16 @@ function pickerSelect(longitude, latitude, note) {
   pickerMark(pickerGeoToFraction(longitude, latitude));
 }
 function pickerSummarize(data) {
-  const matched = (data.matched_names || []).join('、');
+  const matched = (data.matched_names || []).join(', ');
   if (!matched) {
     if ((data.map || data).url && data.location_hint) {
-      return '本地水系未匹配该河名。地图按模型通用知识推测的位置加载，尚未核实；'
-        + '请核对所在河段，在蓝色河道上选实际出水口。';
+      return 'The river name did not match the local dataset. This suggested location is unverified. '
+        + 'Check the river reach and choose its outlet on the blue line.';
     }
-    // 名字对不上就没有底图可点，所以这里必须给出下一步：坐标兜底或换名字。
-    return data.message || '未能可靠定位这条河。请在对话中补充所在区县、乡镇或附近地标，也可以给出水口坐标。';
+    // 名字对不上就没有底图可点，所以这里必须给出下一步: 坐标兜底或换名字。
+    return data.message || 'The river could not be located. Enter a district, nearby landmark or outlet coordinates.';
   }
-  return `匹配到：${matched}。请在蓝色河道上点选出水口，核对坐标后再划分流域。`;
+  return `Matched: ${matched}. Choose an outlet on the blue line and check its coordinates before delineation.`;
 }
 function pickerApply(data) {
   if (data.selection_mode === 'drawn_study_area') { areaApply(data); return; }
@@ -810,13 +810,13 @@ function pickerApply(data) {
 }
 async function pickerLoad() {
   const name = $('#picker-river').value.trim();
-  if (!name) { pickerHint('请先输入河流名称。', true); return; }
-  if (!sessionId) { pickerHint('会话尚未就绪，请稍后再试。', true); return; }
-  if (busy) { pickerHint('上一条消息还在处理，等它结束再加载地图。', true); return; }
+  if (!name) { pickerHint('Enter a river name.', true); return; }
+  if (!sessionId) { pickerHint('The session is starting. Try again shortly.', true); return; }
+  if (busy) { pickerHint('Wait for the previous message before loading the map.', true); return; }
   const button = $('#picker-load');
   button.disabled = true;
   pickerClear();
-  pickerHint('正在按河名匹配并渲染底图…');
+  pickerHint('Matching the river and rendering the map…');
   try {
     const data = await api(`/api/v1/sessions/${encodeURIComponent(sessionId)}/outlet-candidates`, {
       method: 'POST',
@@ -832,8 +832,8 @@ async function pickerLoad() {
   }
 }
 function pickerParseCoordinates(text) {
-  /* 河名查不到水系时，这是唯一的出路：给一个大概坐标，走与手动输入相同的划分路径。
-     只接受能明确读成"经度在前、纬度在后"的两数。 */
+  /* 河名查不到水系时，这是唯一的出路: 给一个大概坐标，走与手动输入相同的划分路径。
+     只接受能明确读成"经度在前, 纬度在后"的两数。 */
   const numbers = String(text || '').match(/-?\d+(?:\.\d+)?/g) || [];
   if (numbers.length !== 2) return null;
   const longitude = Number(numbers[0]);
@@ -843,14 +843,14 @@ function pickerParseCoordinates(text) {
   return {longitude, latitude};
 }
 function pickerUseCoordinates() {
-  if (busy) { pickerHint('上一条消息还在处理，等它结束再划分。', true); return; }
+  if (busy) { pickerHint('Wait for the previous message before delineation.', true); return; }
   const point = pickerParseCoordinates($('#picker-coord').value);
   if (!point) {
-    pickerHint('没读懂这个坐标：请按「经度, 纬度」给两个数，例如 105.90, 29.35。', true);
+    pickerHint('Enter longitude and latitude as two numbers, for example 105.90, 29.35.', true);
     return;
   }
   pickerHide();
-  send(`经度 ${point.longitude.toFixed(5)}、纬度 ${point.latitude.toFixed(5)}`);
+  send(`${point.longitude.toFixed(5)}, ${point.latitude.toFixed(5)}`);
 }
 $('#picker-coord-use').addEventListener('click', pickerUseCoordinates);
 $('#picker-coord').addEventListener('keydown', event => {
@@ -861,17 +861,17 @@ $('#picker-map').addEventListener('click', event => {
   if (!rect.width || !rect.height) return;
   const point = pickerFractionToGeo((event.clientX - rect.left) / rect.width,
                                     (event.clientY - rect.top) / rect.height);
-  if (!point) { pickerHint('点到图框以外了；请点在地形图内。', true); return; }
-  pickerSelect(point.longitude, point.latitude, '地图点选');
-  pickerHint(`已选 ${point.longitude.toFixed(5)}°E, ${point.latitude.toFixed(5)}°N。`
-    + '确认后点「用这个点划分流域」。');
+  if (!point) { pickerHint('Click inside the terrain map.', true); return; }
+  pickerSelect(point.longitude, point.latitude, 'Map selection');
+  pickerHint(`Selected ${point.longitude.toFixed(5)}°E, ${point.latitude.toFixed(5)}°N. `
+    + 'Check the point and select “Delineate from this point”.');
 });
 $('#picker-use').addEventListener('click', () => {
   if (!picker.selected) return;
-  if (busy) { pickerHint('上一条消息还在处理，等它结束再划分这个点。', true); return; }
+  if (busy) { pickerHint('Wait for the previous message before delineating from this point.', true); return; }
   const {longitude, latitude} = picker.selected;
   pickerHide();
-  send(`经度 ${longitude.toFixed(5)}、纬度 ${latitude.toFixed(5)}`);
+  send(`${longitude.toFixed(5)}, ${latitude.toFixed(5)}`);
 });
 $('#picker-load').addEventListener('click', pickerLoad);
 $('#picker-close').addEventListener('click', pickerHide);
@@ -893,8 +893,8 @@ function areaSetMode(mode) {
   $('#area-mode').value=mode;
   $('#area-district').hidden=mode!=='district';$('#area-district-label').hidden=mode!=='district';
   $('#area-river').hidden=mode!=='river';$('#area-coordinates').hidden=mode!=='coordinates';
-  if (!area.geo) areaHint(mode==='district'?'底图沿行政区边界裁切，计算范围以你绘制并确认的边界为准。'
-    :'河名或经纬度用于定位 DEM，请加载地图后绘制闭合评价范围。');
+  if (!area.geo) areaHint(mode==='district'?'The map is clipped to the district. Calculations use the boundary you draw and confirm.'
+    :'Load the DEM by river name or coordinates, then draw a closed boundary.');
 }
 function areaHint(text, error=false) {
   $('#area-hint').textContent=text; $('#area-hint').classList.toggle('is-error',error);
@@ -918,7 +918,7 @@ function areaDraw() {
       dot.setAttribute('cx',x);dot.setAttribute('cy',y);dot.setAttribute('r',6);
       dot.setAttribute('fill','#fff');dot.setAttribute('stroke','#ed5e20');svg.append(dot);});
   }
-  $('#area-status').textContent=area.points.length?`${area.points.length} 个顶点 · ${area.closed?'已闭合':'绘制中'}`:'尚未绘制';
+  $('#area-status').textContent=area.points.length?`${area.points.length} vertices · ${area.closed?'Closed':'Drawing'}`:'No boundary drawn';
   drawDiagnosticMarkers(svg);
   $('#area-undo').disabled=!area.undo.length || locked;
   $('#area-redo').disabled=!area.redo.length || locked;
@@ -964,67 +964,67 @@ function areaApply(data) {
     const option=document.createElement('option');option.value=area.district;option.textContent=area.district;select.append(option);
   }
   select.value=area.district;
-  areaHint(data.message||'请沿需要的边界逐点连线，完成后点击「闭合边界」。');areaDraw();
+  areaHint(data.message||'Add vertices along the boundary, then select “Close boundary”.');areaDraw();
 }
 $('#area-load').addEventListener('click',async()=>{
   if (!sessionId||busy) return;
   const mode=$('#area-mode').value;let location;
   if (mode==='district') location={administrative_area:$('#area-district').value};
   else if (mode==='river') {
-    const name=$('#area-river').value.trim();if (!name) {areaHint('请先输入具体河名。',true);return;}
+    const name=$('#area-river').value.trim();if (!name) {areaHint('Enter the river name.',true);return;}
     location={river_name:name};
   } else {
     const point=pickerParseCoordinates($('#area-coordinates').value);
-    if (!point) {areaHint('请按经度、纬度顺序输入两个有效数值。',true);return;}
+    if (!point) {areaHint('Enter two numbers in longitude, latitude order.',true);return;}
     location=point;
   }
   areaClearMap();busy=true;sendButton.disabled=true;$('#area-load').disabled=true;
   renderTaskWorkspace();
   for (const id of ['area-mode','area-district','area-river','area-coordinates']) $('#'+id).disabled=true;
-  areaHint(mode==='district'?'正在沿行政区边界裁切并渲染 DEM…':'正在定位并加载 DEM 与河网…');
+  areaHint(mode==='district'?'Clipping and rendering the district DEM…':'Locating and loading the DEM and rivers…');
   try {
     const data=await api(`/api/v1/sessions/${encodeURIComponent(sessionId)}/study-area-map`,{
       method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(location)});
-    if (data.map?.url) areaApply(data);else areaHint(data.message||'未能定位，请补充所在区县或地图中心经纬度。',true);
+    if (data.map?.url) areaApply(data);else areaHint(data.message||'The location could not be resolved. Enter a district or map-centre coordinates.',true);
     updateSession(data.session);
   } catch(error) {areaHint(error.message,true);}
   finally {busy=false;sendButton.disabled=false;$('#area-load').disabled=false;
     for (const id of ['area-mode','area-district','area-river','area-coordinates']) $('#'+id).disabled=false;
     areaDraw();renderTaskWorkspace();}
 });
-$('#area-mode').addEventListener('change',()=>{areaClearMap();areaSetMode($('#area-mode').value);areaHint('请选择位置并重新加载底图，再绘制评价边界。');});
-for (const id of ['area-river','area-coordinates']) $('#'+id).addEventListener('input',()=>{areaClearMap();areaHint('位置已改变，请重新加载底图。');});
-$('#area-district').addEventListener('change',()=>{areaClearMap();areaHint('区县已改变，请重新加载底图。');});
+$('#area-mode').addEventListener('change',()=>{areaClearMap();areaSetMode($('#area-mode').value);areaHint('Choose a location and reload the map before drawing the boundary.');});
+for (const id of ['area-river','area-coordinates']) $('#'+id).addEventListener('input',()=>{areaClearMap();areaHint('Location changed. Reload the map.');});
+$('#area-district').addEventListener('change',()=>{areaClearMap();areaHint('District changed. Reload the map.');});
 $('#area-mapwrap').addEventListener('click',event=>{
   if (area.suppressClick) {area.suppressClick=false;return;}
   if (event.target.closest('.editable-vertex,.diagnostic-marker')) return;
   if (!area.geo||area.closed||busy) return;
-  if (area.points.length>=499) {areaHint('顶点过多，请简化边界。',true);return;}
+  if (area.points.length>=499) {areaHint('The boundary has too many vertices. Simplify it.',true);return;}
   const rect=$('#area-map').getBoundingClientRect();
   const fx=(event.clientX-rect.left)/rect.width,fy=(event.clientY-rect.top)/rect.height;
   const [left,bottom,width,height]=area.geo.axes_rect;
   const ax=(fx-left)/width,ay=(1-fy-bottom)/height;
-  if (ax<0||ax>1||ay<0||ay>1) {areaHint('请点在 DEM 图框内。',true);return;}
+  if (ax<0||ax>1||ay<0||ay>1) {areaHint('Click inside the DEM map.',true);return;}
   const [west,south,east,north]=area.geo.bbox_wgs84;
   const point=[west+ax*(east-west),south+ay*(north-south)];
   const previous=area.points.at(-1);
   if (previous&&Math.hypot(point[0]-previous[0],point[1]-previous[1])<1e-7) return;
-  areaRemember();area.points.push(point);areaDraw();saveAreaDraft();areaHint('继续沿边界添加顶点，至少三个顶点后可以闭合。');
+  areaRemember();area.points.push(point);areaDraw();saveAreaDraft();areaHint('Add at least three vertices before closing the boundary.');
 });
 $('#area-undo').addEventListener('click',()=>{if (busy||!area.undo.length) return;area.redo.push(areaGeometry());Object.assign(area,area.undo.pop());areaDraw();saveAreaDraft();});
 $('#area-redo').addEventListener('click',()=>{if (busy||!area.redo.length) return;area.undo.push(areaGeometry());Object.assign(area,area.redo.pop());areaDraw();saveAreaDraft();});
 $('#area-clear').addEventListener('click',()=>{if (busy) return;areaRemember();area.points=[];area.closed=false;areaDraw();saveAreaDraft();});
-$('#area-finish').addEventListener('click',()=>{if (busy||area.points.length<3) return;areaRemember();area.closed=true;areaDraw();saveAreaDraft();areaHint('边界已闭合，可以提交覆盖与水文合理性检查。');});
+$('#area-finish').addEventListener('click',()=>{if (busy||area.points.length<3) return;areaRemember();area.closed=true;areaDraw();saveAreaDraft();areaHint('Boundary closed. Submit it for coverage and drainage checks.');});
 $('#area-use').addEventListener('click',async()=>{
   if (busy||!area.closed||area.session!==sessionId||!area.geo) return;
   clearTimeout(draftTimer);
-  busy=true;sendButton.disabled=true;areaDraw();areaHint('正在核对覆盖、主要出流位置与框外上游汇水…');
+  busy=true;sendButton.disabled=true;areaDraw();areaHint('Checking coverage, potential outlets and upstream inflow…');
   try {
     const coordinates=[...area.points,area.points[0]];
     const data=await api(`/api/v1/sessions/${encodeURIComponent(sessionId)}/study-area`,{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({administrative_area:area.district||null,map_id:area.context?.map_id,coordinates,assessment_mode:$('#area-assessment-mode').value})});
-    message(`在${area.context?.location_label||area.district}绘制评价区域并提交覆盖与水文合理性检查。`,'user');
+    message(`Check the drawn boundary at ${area.context?.location_label||area.district}.`,'user');
     renderReply(data.reply);updateSession(data.session);$('#area-picker').hidden=true;await loadHistory();
   } catch(error) {areaHint(error.message,true);}
   finally {busy=false;sendButton.disabled=false;areaDraw();renderTaskWorkspace();}

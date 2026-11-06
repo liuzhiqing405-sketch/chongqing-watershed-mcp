@@ -112,7 +112,9 @@ def deterministic_knowledge_topic(text: str) -> str | None:
         return topic
     if any(cue in text for cue in SPECIFIC_CASE):
         return None
-    if not any(shape in text for shape in QUESTION_SHAPES):
+    if not any(shape in text for shape in QUESTION_SHAPES) and not re.match(
+        r"\s*(?:what|why|how|can|could|does|do|explain)\b", text, re.I
+    ):
         return None
     return topic
 
@@ -685,6 +687,11 @@ class DialogueRouter:
     @staticmethod
     def _explicit_user_control(message: str, ruled: ParsedIntent, session: Any) -> bool:
         text = message.strip().lower().strip("。！! ")
+        if text.rstrip(".") in {
+            "confirm boundary", "confirm the boundary", "reject boundary",
+            "reject the boundary", "cancel run", "cancel the run",
+        }:
+            return True
         parts = [part.strip() for part in re.split(r"[，,、；;]", text) if part.strip()]
         # Only an imperative main clause grants control. A trailing question
         # must not hide it; a conditional, quote, negation or retraction cannot.

@@ -48,44 +48,44 @@ FIELD_TOPICS: dict[str, str] = {
 #: The question, and a couple of ways a person might answer it.
 TOPICS: dict[str, dict[str, Any]] = {
     "place": {
-        "question": "你想评价哪个位置？可以给区县、具体河名或经纬度，我会打开 DEM 供你绘制边界。",
+        "question": "Which location should I assess? Choose a district or enter a river name or coordinates to open the DEM and draw a boundary.",
         # Digit-free on purpose: a clarification is a reply, and every reply
         # goes through the numeric audit. An example coordinate here is not
         # evidence and the audit rightly refuses it — and an example that
         # *looks* like a real coordinate invites copying it, which would run
         # an analysis somewhere the user never chose.
-        "examples": ["分析大宁河", "就看前面说的那条河"],
+        "examples": ["105.90, 29.35", "Use the previously selected river"],
     },
     "watershed_confirmation": {
-        "question": "流域边界已经划分好了。看过图之后，确认就回复「确认该边界」，"
-                    "我会接着准备降雨和模型输入；不满意就回复「拒绝」，我们换个位置重来。",
-        "examples": ["确认该边界", "拒绝，换一个位置"],
+        "question": "The boundary is ready for review. After checking the map, reply “confirm boundary” "
+                    "or “reject boundary”.",
+        "examples": ["confirm boundary", "reject boundary"],
     },
     "rainfall": {
-        "question": "接下来是降雨事件。你想用哪一场雨？指定某一天或某个时段都可以；"
-                    "如果不确定，也可以直接用资料期内的样本最大日。",
-        "examples": ["2024-07-30 全天", "用历史最大日"],
+        "question": "Which rainfall event should I use? Specify a date or time window, "
+                    "or select the maximum day in the available record.",
+        "examples": ["2009-08-04", "historical maximum"],
     },
     "parameters": {
-        "question": "运行参数目前用默认预设。想改哪个参数，直接说参数名和取值就行；"
-                    "不改的话，直接开始运行。",
-        "examples": ["开始运行", "用默认参数就行"],
+        "question": "The run uses the default preset. To override it, provide a parameter name and value. "
+                    "Otherwise, review the plan and start the run.",
+        "examples": ["start run", "Use the default parameters"],
     },
     "start": {
-        "question": "运行计划已经生成。确认无误就回复「开始运行」，任务会在后台执行，"
-                    "可以随时问进度。",
-        "examples": ["开始运行"],
+        "question": "运行计划已经生成。确认无误就回复「start run」，任务会在后台执行，"
+                    "You can check progress while it runs.",
+        "examples": ["start run"],
     },
     "restart": {
-        "question": "可以在当前任务修改位置、边界、降雨或参数。相关下游输入会重新准备，"
-                    "修改前版本可恢复；新的边界仍需检查和确认，运行前须核对新计划。",
-        "examples": ["修改降雨日期", "恢复上一步"],
+        "question": "Edit the location, boundary, rainfall or parameters in the current task. "
+                    "You can restore earlier revisions. Check and confirm an edited boundary before reviewing the new run plan.",
+        "examples": ["Change rainfall date", "restore previous revision"],
     },
     "help": {
-        "question": "我没能确定你想做什么。这个智能体做的是区域尺度、降雨事件驱动的"
-                    "坡面稳定性初步筛查与诊断：给一条河或一个坐标，我会带你走完"
-                    "降雨、建模和评价；也可以直接问我某个概念。",
-        "examples": ["分析大宁河", "安全系数是什么意思？"],
+        "question": "Choose a location to start a preliminary assessment, or "
+                    "ask a question about slope stability. "
+                    "",
+        "examples": ["105.90, 29.35", "What is the factor of safety?"],
     },
 }
 
@@ -106,10 +106,10 @@ class Clarification:
     def render(self) -> str:
         lines: list[str] = []
         if self.recorded:
-            lines.append("好的，" + "；".join(self.recorded) + "。")
+            lines.append("Recorded: " + "；".join(self.recorded) + "。")
         lines.append(self.question)
         if self.examples:
-            lines.append("比如：" + "、".join(f"「{item}」" for item in self.examples) + "。")
+            lines.append("For example: " + "、".join(f"「{item}」" for item in self.examples) + "。")
         return "\n".join(lines)
 
     def log_safe(self) -> dict[str, Any]:
@@ -120,21 +120,21 @@ class Clarification:
 #: How a recorded entity reads back to the user. Only the fields a person would
 #: recognise are named; the rest stay internal.
 RECORDED_PHRASES: dict[str, str] = {
-    "administrative_area": "区县记为 {value}",
-    "river_name": "河流记为 {value}",
-    "longitude": "经度记为 {value}",
-    "latitude": "纬度记为 {value}",
-    "date": "日期记为 {value}",
-    "start_datetime": "开始时间记为 {value}",
-    "end_datetime": "结束时间记为 {value}",
-    "rainfall_mode": "降雨改用{value}",
-    "lookback_years": "回看年数记为 {value}",
-    "end_year": "资料期截止年份记为 {value}年",
-    "station_count": "虚拟雨站数量记为 {value} 个",
+    "administrative_area": "District: {value}",
+    "river_name": "River: {value}",
+    "longitude": "Longitude: {value}",
+    "latitude": "Latitude: {value}",
+    "date": "Date: {value}",
+    "start_datetime": "Start: {value}",
+    "end_datetime": "End: {value}",
+    "rainfall_mode": "Rainfall: {value}",
+    "lookback_years": "Lookback: {value} years",
+    "end_year": "Record end year: {value}",
+    "station_count": "Virtual gauge count: {value}",
 }
 
-RAINFALL_MODE_WORDS = {"historical_max": "资料期内样本最大日",
-                       "explicit_period": "指定日期或时段"}
+RAINFALL_MODE_WORDS = {"historical_max": "maximum day in the record",
+                       "explicit_period": "specified date or time window"}
 
 
 def describe_recorded(entities: dict[str, Any]) -> list[str]:
@@ -144,7 +144,7 @@ def describe_recorded(entities: dict[str, Any]) -> list[str]:
         if value in (None, ""):
             continue
         if name == "rainfall_mode":
-            spoken.append(f"降雨改用{RAINFALL_MODE_WORDS.get(str(value), value)}")
+            spoken.append(f"Rainfall: {RAINFALL_MODE_WORDS.get(str(value), value)}")
             continue
         template = RECORDED_PHRASES.get(name)
         if template:
@@ -191,9 +191,9 @@ def ask(session: Any, *, topic: str | None = None,
     """Build the one question to ask this turn."""
     if intent is Intent.SHOW_VISUALIZATION:
         question=(ambiguity if ambiguity and ambiguity.rstrip().endswith(('？','?')) else
-                  '我理解你想查看当前任务的图件。想看建模子汇水区划分，还是你绘制的评价边界？')
+                  'Would you like the modelled subcatchments or the study boundary you drew?')
         return Clarification(topic='visualization',question=question,
-                             examples=['查看子汇水区划分图','查看评价边界图'],
+                             examples=['Show subcatchment map','Show study area map'],
                              recorded=list(recorded or []),blocked_by=blocked_by)
     resolved = topic if topic in TOPICS else next_topic(
         session, missing_fields=missing_fields, intent=intent)
@@ -209,7 +209,7 @@ def ask(session: Any, *, topic: str | None = None,
                     "以便确定具体河段后手绘边界；也可以给经纬度定位。")
         examples = []
     if resolved == "help" and ambiguity:
-        question = f"{question}\n（这次没接上的地方：{ambiguity}）"
+        question = f"{question}\n(Clarification: {ambiguity})"
     return Clarification(topic=resolved, question=question, examples=examples,
                          recorded=list(recorded or []), blocked_by=blocked_by)
 

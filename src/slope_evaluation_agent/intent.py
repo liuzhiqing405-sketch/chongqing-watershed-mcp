@@ -532,7 +532,7 @@ class RuleParser:
             day = _iso_date(*match.groups())
         if day:
             result.date = day
-        if _MAX_DAY.search(text):
+        if _MAX_DAY.search(text) or re.search(r"\bhistorical maximum(?: rainfall)?(?: day)?\b", text, re.I):
             result.rainfall_mode = "historical_max"
         elif day or _WHOLE_DAY.search(text):
             result.rainfall_mode = "explicit_period"
@@ -600,6 +600,27 @@ class RuleParser:
     # ----------------------------------------------------------------- intent
     def _intent(self, text: str, session: AgentSession, result: ParsedIntent) -> None:
         lowered = text.lower()
+        command = lowered.strip().rstrip(".!")
+        english_commands = {
+            "confirm boundary": Intent.CONFIRM_WATERSHED,
+            "confirm the boundary": Intent.CONFIRM_WATERSHED,
+            "reject boundary": Intent.REJECT_WATERSHED,
+            "reject the boundary": Intent.REJECT_WATERSHED,
+            "start run": Intent.START_HYDRO_RUN,
+            "start the run": Intent.START_HYDRO_RUN,
+            "run the model": Intent.START_HYDRO_RUN,
+            "check progress": Intent.CHECK_STATUS,
+            "show status": Intent.CHECK_STATUS,
+            "cancel run": Intent.CANCEL_RUN,
+            "cancel the run": Intent.CANCEL_RUN,
+            "show results": Intent.SHOW_RESULT,
+            "show figures": Intent.SHOW_VISUALIZATION,
+            "restore previous revision": Intent.RESTORE_TASK,
+        }
+        if command in english_commands:
+            result.intent = english_commands[command]
+            result.confidence = 0.95
+            return
         if lowered.strip("。！! ") in {"恢复上一步","恢复上个版本","撤销上次修改","恢复修改前"}:
             result.intent=Intent.RESTORE_TASK
             result.confidence=.98

@@ -162,24 +162,24 @@ def describe_result_summary(assessment: dict[str, Any]) -> str:
     distribution = factors.get('spatial_distribution') or {}
     minimum = (factors.get('safety_factor') or {}).get('minimum')
     instant = (factors.get('instability_extent_duration') or {}).get('max_unstable_fraction')
-    parts = ['计算已完成，质量检查通过。']
+    parts = ['The run completed and passed the quality checks.']
     if minimum is not None:
-        parts.append(f'最小安全系数为 {minimum:.4f}。')
+        parts.append(f'Minimum factor of safety: {minimum:.4f}.')
     if distribution.get('available'):
         area = distribution.get('below_one_area_km2')
         denominator = distribution.get('calculation_area_km2')
         if area is not None and denominator is not None:
-            parts.append(f'事件内曾出现FS<1的面积为 {area:.4f} km²；'
-                         f'面积分母为计算域有效像元面积 {denominator:.4f} km²。')
-        parts.append(f'事件最小Fs栅格中，Fs<1区域占 {distribution["below_one_fraction"]:.2%}；'
-                     f'其余区域占 {distribution["at_or_above_one_fraction"]:.2%}。')
+            parts.append(f'Area below a factor of safety of unity during the event: {area:.4f} km²; '
+                         f'valid calculation area: {denominator:.4f} km².')
+        parts.append(f'Share below unity in the event-minimum raster: {distribution["below_one_fraction"]:.2%}; '
+                     f'share at or above unity: {distribution["at_or_above_one_fraction"]:.2%}.')
         region = distribution.get('largest_below_one_sector')
         if region:
-            parts.append(f'按方位统计，{region}的Fs<1面积最多。')
+            parts.append(f'The largest area below unity was in the {region} sector.')
     elif instant is not None:
-        parts.append(f'同一时刻最大失稳比例为 {instant:.2%}。')
-    parts.append('这是本次模拟的初步评价。')
-    return ''.join(parts)
+        parts.append(f'Maximum instantaneous unstable fraction: {instant:.2%}.')
+    parts.append('This is a preliminary assessment for the simulated event.')
+    return '\n'.join(parts)
 
 
 def _rainfall_source(session: AgentSession) -> str | None:
@@ -226,19 +226,19 @@ def describe_assessment(assessment: dict[str, Any]) -> str:
     hydraulic = facts.get("hydraulic_pore_pressure") or {}
 
     if status == AssessmentStatus.UNAVAILABLE.value:
-        lines = ["这次运行没有可用于评价的结果。"]
+        lines = ["This run has no results available for assessment."]
         lines += [f"- {item}" for item in (assessment.get("warnings") or [])[:4]]
         if qa_passed is None:
-            lines.append("可以先回复「状态」确认任务是否仍在执行；失败的任务可重新生成计划后运行。")
+            lines.append("Check progress to see whether it is still running. For a failed run, review the error and rebuild the plan.")
         return sanitize("\n".join(lines))
 
     if status == AssessmentStatus.DIAGNOSTIC_ONLY.value:
-        lines = ["计算已完成，但质量门槛未通过：下面只能作为诊断信息，不构成稳定性结论。"]
+        lines = ["The run completed but failed its quality checks. The outputs are for diagnostics only."]
         failed = assessment.get("quality_gates") or []
         failing = [item.get("name") for item in failed
                    if isinstance(item, dict) and not item.get("passed")]
         if failing:
-            lines.append("未通过的门槛：" + "、".join(str(item) for item in failing))
+            lines.append("Failed checks: " + ", ".join(str(item) for item in failing))
         for item in (assessment.get("warnings") or [])[:4]:
             lines.append(f"- {item}")
         for statement in assessment.get("interpretations") or []:

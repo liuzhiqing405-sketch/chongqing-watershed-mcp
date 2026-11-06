@@ -256,8 +256,8 @@ class SlopeEvaluationAgent(TaskWorkspaceMixin, ProductCleanupMixin):
             self._events(session).append(
                 "reply_audit", problems=canonical_problems[:5], rewritten=False,
                 canonical_failed=True)
-            safe_text = ("内部一致性检查未通过，本轮未输出数值结果。"
-                         "请保留当前会话并复核证据映射后重试。")
+            safe_text = ("The reply failed its consistency check and numerical results were withheld. "
+                         "Keep the session and verify the evidence before retrying.")
             kwargs["kind"] = "error"
             kwargs["ok"] = False
             return AgentReply(text=safe_text, session=session, facts=facts or {},
@@ -779,7 +779,7 @@ class SlopeEvaluationAgent(TaskWorkspaceMixin, ProductCleanupMixin):
                 # "This conversation has nothing to download" is the first thing
                 # to say: the workflow's pending step alone reads as if the
                 # request had not been understood.
-                next_step = "当前还没有可下载的成果。" + next_step
+                next_step = "This session has no files to download yet. " + next_step
         else:
             next_step = getattr(error, "next_step", "") or pending_action(session.state)
         clarification = blocked_question(session, next_step=next_step)
@@ -998,16 +998,16 @@ class SlopeEvaluationAgent(TaskWorkspaceMixin, ProductCleanupMixin):
                                 assessment_mode: str = "regional_screening") -> AgentReply:
         from watershed_exchange.domain_policy import ASSESSMENT_MODES, drawn_modeling_allowed
         if assessment_mode not in ASSESSMENT_MODES:
-            raise WorkflowError("未知评价方式，请重新选择后提交")
+            raise WorkflowError("Choose a valid assessment mode before submitting.")
         if session.selection_mode!="drawn_study_area" or session.administrative_area!=administrative_area:
-            raise WorkflowError("底图区域已改变，请重新加载对应区县地图后再提交边界")
+            raise WorkflowError("The map area changed. Reload the district map before submitting.")
         context=session.selection_context
         if not context.get("map_id") or (map_id is not None and map_id!=context.get("map_id")) or (not administrative_area and map_id!=context.get("map_id")):
-            raise WorkflowError("定位地图已改变，请在当前地图重新绘制边界后提交")
+            raise WorkflowError("The map changed. Redraw the boundary on the current map.")
         if context.get("bbox_wgs84"):
             w,s,e,n=context["bbox_wgs84"]
             if any(len(p)!=2 or not w<=p[0]<=e or not s<=p[1]<=n for p in coordinates):
-                raise WorkflowError("边界顶点超出当前地图，请重新定位或调整地图范围后绘制")
+                raise WorkflowError("A vertex is outside the current map. Adjust the map and redraw the boundary.")
         if session.review_id or session.rainfall_package_id or session.hydro_run_id:
             await self.prepare_task_edit(session,"boundary")
         else:
@@ -1101,7 +1101,7 @@ class SlopeEvaluationAgent(TaskWorkspaceMixin, ProductCleanupMixin):
         if longitude is None and latitude is None:
             return await self.outlet_candidates_map(session,river_name)
         if longitude is None or latitude is None:
-            raise ValueError("地图中心必须同时提供经度和纬度")
+            raise ValueError("Enter longitude and latitude for the map centre.")
         if session.review_id or session.model_input_package_id or session.hydro_run_id:
             await self.prepare_task_edit(session,"location")
         else:
@@ -1112,13 +1112,13 @@ class SlopeEvaluationAgent(TaskWorkspaceMixin, ProductCleanupMixin):
                                  longitude=longitude,latitude=latitude)
         record=dict(payload.get("data") or payload)
         if not (record.get("map") or {}).get("image_base64"):
-            raise WorkflowError(record.get("message") or "该位置没有有效 DEM")
+            raise WorkflowError(record.get("message") or "No valid elevation data cover this location.")
         session.river_name=river_name;session.administrative_area=None
         session.selection_mode="drawn_study_area";session.requested_outlet=None;session.location_hint=None
-        self._set_drawing_context(session,record,"coordinates","坐标定位评价区域")
+        self._set_drawing_context(session,record,"coordinates","Study area at the selected coordinates")
         session.selection_context["map_center"]={"longitude":longitude,"latitude":latitude}
         record.update(session.selection_context)
-        record.update(message="已按经纬度定位 DEM 地图。请绘制闭合评价边界，提交覆盖检查后再确认。",candidates=[])
+        record.update(message="The DEM map is centred at the requested coordinates. Draw a closed boundary and submit it for checks before confirming.",candidates=[])
         self._advance(session,WorkflowState.OUTLET_CANDIDATES_READY,"等待手绘评价边界")
         session.refresh_summary();self.store.save(session)
         return record
@@ -1141,7 +1141,7 @@ class SlopeEvaluationAgent(TaskWorkspaceMixin, ProductCleanupMixin):
                                 kind="question")
         candidates = session.outlet_candidates or []
         if not candidates:
-            return await self._finish(session, "请在定位后的地图上绘制闭合评价边界。也可以提供河名或经纬度重新定位。", kind="question")
+            return await self._finish(session, "Draw a closed boundary on the map, or enter a river name or coordinates to change location.", kind="question")
         if not 1 <= index <= len(candidates):
             return await self._finish(
                 session,
@@ -1155,19 +1155,19 @@ class SlopeEvaluationAgent(TaskWorkspaceMixin, ProductCleanupMixin):
         # The gate refuses this unless a unique, undecided review is pending.
         from .task_context import boundary_draft_changed
         if boundary_draft_changed(session):
-            raise WorkflowError("边界草稿已修改，请先提交检查，再确认新的边界。")
+            raise WorkflowError("The boundary draft changed. Submit it for checks before confirming it.")
         require_operation(session, Operation.CONFIRM_WATERSHED)
         if not session.has_pending_watershed():
             raise WorkflowError(
-                "当前没有唯一待确认的流域边界，不能执行确认。",
-                next_step=f"当前可以做的事：{session.pending_action()}",
+                "Select and check a boundary before confirming it.",
+                next_step=f"Next action: {session.pending_action()}",
             )
         if session.watershed_qa_passed is False:
             # The server refuses this too; refusing here gives a usable reason
             # instead of a round trip that cannot succeed.
             raise WorkflowError(
-                "该流域的空间质量检查未通过，不能确认。",
-                next_step="请重新打开地图，在目标河道上选出水口，划分通过质量检查后再确认边界。",
+                "The boundary failed the spatial checks and cannot be confirmed.",
+                next_step="Choose an outlet on the map and delineate a boundary that passes the checks.",
             )
         payload = await self._call(session, self.spatial, "confirm_watershed",
                                    review_id=session.review_id, confirmed=True,
@@ -1237,7 +1237,7 @@ class SlopeEvaluationAgent(TaskWorkspaceMixin, ProductCleanupMixin):
                                           ok=False, images=reply.images, facts=ledger_facts)
         ledger_facts["intake_completed"] = True
         if reply is None:
-            return await self._finish(session, "当前输入与运行计划已准备好。请查看计划，明确回复「开始运行」后再提交计算。",
+            return await self._finish(session, "The inputs and plan are ready. Review the plan and reply “start run” to submit it.",
                                       kind="question", facts=ledger_facts)
         # Keep the step records as evidence; a user needs the completed outcome,
         # not a concatenated transcript of every internal preparation stage.

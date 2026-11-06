@@ -19,20 +19,20 @@ from .evaluation import TOPICS as TERM_TOPICS
 
 #: What this agent does, in the order a user would meet it.
 CAPABILITIES: tuple[str, ...] = (
-    "使用配置的通用大模型回答水文地质、地质灾害、地理、岩土等工程知识问题，无需启动计算。",
-    "按河名加载选址地图，由你点选出水口；也可以直接给经纬度，划分对应的流域边界。",
-    "把边界交给你确认——只有你确认过的流域才会进入后续计算。",
-    "把区域尺度的 ERA5 网格降雨插值成流域内的虚拟雨站，生成降雨事件。",
-    "裁切并导出模型输入包，交给水文服务做 SWMM 建模与逐像元的稳定性计算。",
-    "跑完质量门槛后给出区域尺度的初步筛查结果，并解释其中每个数值的含义与来源。",
+    "Explain hydrogeology, geohazards and geotechnical concepts without starting a run.",
+    "Load an outlet map by river name or use coordinates to delineate a watershed.",
+    "Review and confirm the boundary before calculations proceed.",
+    "Prepare an ERA5 rainfall event using virtual rain gauges.",
+    "Build a model input package for SWMM and grid-based stability calculations.",
+    "Report preliminary screening results and their sources after the quality checks pass.",
 )
 
 #: What it does not do. These are the boundaries, said plainly.
 NOT_CAPABILITIES: tuple[str, ...] = (
-    "不做工程级边坡安全鉴定：这是区域尺度、降雨事件驱动的初步筛查与诊断。",
-    "不做灾害预报，也不给泥石流易发性评价或任何风险等级。",
-    "不产生综合风险分数，也不替工程判断选址、支护或治理方案。",
-    "目前不联网检索；知识问答来自通用模型或内置知识，项目计算结论仅依据当前 MCP 成果。",
+    "The analysis is preliminary regional screening for a rainfall event.",
+    "Hazard forecasting, debris-flow susceptibility and risk grades are outside its scope.",
+    "Site design and engineering decisions require separate investigation.",
+    "The agent explains general concepts from its model or built-in guidance and grounds run reports in engineering-service outputs.",
 )
 
 #: The two services, and what each is for.
@@ -45,13 +45,13 @@ SERVICES: dict[str, str] = {
 
 #: Explanations that are not about a particular number.
 CONCEPTS: dict[str, str] = {
-    "greeting": "你好。我可以回答水文地质、地质灾害与岩土等工程知识问题，也可以做区域尺度的坡面稳定性初步筛查与诊断："
-                "给一条河的名字或一个经纬度，我会划分流域、请你确认边界、准备降雨、"
-                "建模计算，最后给出带来源的初步结果。也可以直接问我某个概念。",
-    "capability": "我可以利用通用大模型回答水文地质、地质灾害、地理与岩土等工程知识问题，知识问答无需启动计算。"
-                  "需要分析具体流域时，我也可以带你走完一次区域尺度的坡面稳定性初步筛查：给一条河或一个坐标，"
-                  "我会划分流域、请你确认边界、准备降雨、建模计算，最后给出带来源的初步结果，"
-                  "并解释其中每个数值。",
+    "greeting": "Hello. I can answer engineering questions or guide a preliminary slope-stability assessment in Chongqing. "
+                "Choose a location and confirm the boundary before preparing rainfall and running the model. "
+                "Results are linked to the calculation outputs.",
+    "capability": "I can explain hydrogeology, geohazards and geotechnical concepts. "
+                  "For a Chongqing case, I can help select the study area and rainfall event, "
+                  "then coordinate SWMM and slope stability calculations after you confirm the inputs. "
+                  "I report the checks, results and their sources.",
     "boundary": "边界必须由你确认，是这套系统的设计前提。流域边界决定后面所有计算的范围："
                 "换一个出口点，面积、降雨分布和每个像元的结果都会变。所以先由模型给出一个"
                 "候选边界和图件，再由你决定它是否可信——我不代替你做这个决定。",
@@ -99,6 +99,25 @@ _CN_ORDINALS = ("其一", "其二", "其三", "其四", "其五", "其六", "其
 CONCEPTS["workflow"] = "一次完整的评价是这样走的：" + "；".join(
     f"{_CN_ORDINALS[index]}，{step}" for index, step in enumerate(WORKFLOW_STEPS))
 
+CONCEPTS.update({
+    "boundary": "The boundary sets the calculation domain. Review the map and the drainage checks before confirming it.",
+    "no_date": "Choose a date or time window, or use the maximum day in the available rainfall record. The record maximum has no return-period interpretation.",
+    "engineering": "The model is intended for preliminary regional screening. Site design and safety certification require site-specific investigations and analysis.",
+    "risk_grade": "The system reports modelled indicators and their sources. A risk grade would require a validated link between those indicators and observed impacts.",
+    "composite_score": "The system reports the factor of safety, affected area and duration separately. A composite score would require validated weights.",
+    "debris_flow": "Debris-flow susceptibility requires evidence about sediment supply, channel geometry and deposition beyond this slope-stability model.",
+    "workflow": "Select the study area, review and confirm its boundary, prepare rainfall and model inputs, review the run plan, then run the model and check the results.",
+})
+
+ENGLISH_TERMS = {
+    "safety_factor": "The factor of safety compares resistance to driving forces under the model assumptions. Values below unity indicate local modelled instability.",
+    "pore_pressure": "Higher groundwater pressure can reduce effective stress and shear resistance. The response in a particular slope depends on its drainage, soil properties and rainfall conditions.",
+    "unstable": "An unstable cell has a modelled factor of safety below unity. Area, duration and the lowest factor of safety describe different aspects of the response.",
+    "qa": "Quality checks screen the inputs and run outputs. A failed check limits the outputs to diagnostics.",
+    "rainfall": "ERA5 rainfall is sampled or interpolated at virtual gauges for the selected event. The original dataset is a reanalysis.",
+    "model": "SWMM computes subcatchment runoff. The slope-stability component uses the engineering outputs on the calculation grid.",
+}
+
 #: The scientific caveats, reused verbatim from the policy module so the
 #: conversation cannot soften them.
 LIMITATIONS: tuple[str, ...] = (
@@ -112,7 +131,7 @@ LIMITATIONS: tuple[str, ...] = (
 #: Keywords that pick a topic out of a question. Checked in order; the term
 #: topics from ``evaluation`` come last so a specific question wins.
 TOPIC_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("greeting", ("你好", "您好", "在吗", "hello", "hi", "早上好", "下午好")),
+    ("greeting", ("你好", "您好", "在吗", "hello", "hi", "good morning", "good afternoon", "早上好", "下午好")),
     # Boundary questions come first: "为什么不给风险等级" also contains 给 and 等级,
     # and answering it as a general capability question would miss the point.
     ("risk_grade", ("风险等级", "风险分级", "安全等级", "稳定等级", "定级", "分级",
@@ -125,13 +144,13 @@ TOPIC_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("boundary", ("确认", "边界为什么要", "为什么要我", "人工", "审核", "门")),
     ("no_date", ("没有日期", "不知道日期", "没有具体", "随便哪场", "不确定日期",
                  "没有降雨", "没日期", "不知道哪天", "哪场雨都行")),
-    ("capability", ("你能做", "能做什么", "会做什么", "能分析哪", "能分析什么",
+    ("capability", ("what can you do", "what can this do", "你能做", "能做什么", "会做什么", "能分析哪", "能分析什么",
                     "有什么功能", "支持什么", "你是谁", "你是什么")),
     ("workflow", ("怎么走", "什么流程", "步骤", "下一步", "怎么做", "如何开始", "怎么开始")),
     ("limitations", ("局限", "限制", "边界在哪", "有什么问题", "准确吗", "可靠吗")),
 ) + tuple((name, keywords) for name, keywords in (
-    ("safety_factor", ("安全系数", "fs")),
-    ("pore_pressure", ("孔压", "孔隙水压力", "水压")),
+    ("safety_factor", ("factor of safety", "safety factor", "安全系数", "fs")),
+    ("pore_pressure", ("pore pressure", "groundwater", "孔压", "孔隙水压力", "水压")),
     ("unstable", ("失稳", "不稳定", "持续时间", "比例")),
     ("qa", ("质量门槛", "qa", "门槛")),
     ("rainfall", ("降雨", "雨量", "era5", "虚拟站", "雨站")),
@@ -167,7 +186,7 @@ def snippets(topic: str) -> list[str]:
     if topic in CONCEPTS and CONCEPTS[topic]:
         return [CONCEPTS[topic]]
     if topic in TERM_TOPICS:
-        return [TERM_TOPICS[topic]]
+        return [ENGLISH_TERMS.get(topic, TERM_TOPICS[topic])]
     if topic == "limitations":
         return list(LIMITATIONS)
     if topic == "capabilities_list":

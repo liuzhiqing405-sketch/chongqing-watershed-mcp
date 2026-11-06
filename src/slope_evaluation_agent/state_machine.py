@@ -142,7 +142,7 @@ ALLOWED_TRANSITIONS: dict[WorkflowState, frozenset[WorkflowState]] = {
 class WorkflowError(RuntimeError):
     """Base for workflow rule violations."""
 
-    next_step = "请按当前步骤的提示继续。"
+    next_step = "Follow the instructions for the current step."
 
     def __init__(self, message: str, *, next_step: str | None = None) -> None:
         super().__init__(message)
@@ -150,19 +150,19 @@ class WorkflowError(RuntimeError):
             self.next_step = next_step
 
     def user_message(self) -> str:
-        return f"{self}\n下一步：{self.next_step}"
+        return f"{self}\nNext: {self.next_step}"
 
 
 class IllegalTransition(WorkflowError):
     """The session is not in a state that permits this move."""
 
-    next_step = "先完成当前步骤，或开始新的会话。"
+    next_step = "Finish the current step or start a new session."
 
 
 class WorkflowGateError(WorkflowError):
     """The state allows the move, but a required fact is not recorded yet."""
 
-    next_step = "按提示补齐缺失的步骤后重试。"
+    next_step = "Complete the required steps and retry."
 
 
 def is_known_state(state: str) -> bool:
@@ -250,21 +250,21 @@ GATES: dict[Operation, Gate] = {
         Operation.VALIDATE_DATA,
         _states(WorkflowState.NEW, WorkflowState.NEEDS_LOCATION,
                 WorkflowState.OUTLET_CANDIDATES_READY),
-        next_step="随后可以按河流名称或坐标指定出水口。",
+        next_step="Then specify the outlet by river name or coordinates.",
     ),
     Operation.RECOMMEND_OUTLETS: Gate(
         Operation.RECOMMEND_OUTLETS,
         _states(WorkflowState.NEW, WorkflowState.NEEDS_LOCATION,
                 WorkflowState.OUTLET_CANDIDATES_READY, WorkflowState.WATERSHED_REJECTED,
                 WorkflowState.WATERSHED_QA_FAILED),
-        next_step="请在地图上点选出水口，或直接给出经纬度。",
+        next_step="Choose an outlet on the map or enter longitude and latitude.",
     ),
     Operation.DELINEATE: Gate(
         Operation.DELINEATE,
         _states(WorkflowState.NEW, WorkflowState.NEEDS_LOCATION,
                 WorkflowState.OUTLET_CANDIDATES_READY, WorkflowState.WATERSHED_REJECTED,
                 WorkflowState.WATERSHED_QA_FAILED),
-        next_step="划分完成后需要人工确认边界。",
+        next_step="Review and confirm the delineated boundary.",
     ),
     Operation.REVIEW_WATERSHED: Gate(
         Operation.REVIEW_WATERSHED,
@@ -280,7 +280,7 @@ GATES: dict[Operation, Gate] = {
         _states(WorkflowState.AWAITING_WATERSHED_CONFIRMATION),
         requires=(("review_id", "待确认的流域审核记录"),),
         forbids=(("watershed_confirmed", "该流域已经确认过"),),
-        next_step="确认后即可准备降雨包与模型输入。",
+        next_step="After confirmation, prepare the rainfall package and model inputs.",
     ),
     Operation.REJECT_WATERSHED: Gate(
         Operation.REJECT_WATERSHED,
@@ -322,7 +322,7 @@ GATES: dict[Operation, Gate] = {
         _states(WorkflowState.HYDRO_INPUT_VALIDATED) | set(RETRYABLE_HYDRO_STATES),
         requires=(("hydro_input_id", "已导入或注册的输入"),
                   ("hydro_input_validated", "通过验证的输入")),
-        next_step="确认计划后即可提交后台任务。",
+        next_step="Review the plan before starting the run.",
     ),
     Operation.START_RUN: Gate(
         Operation.START_RUN,
@@ -330,7 +330,7 @@ GATES: dict[Operation, Gate] = {
         # Both are required: a validated input AND a plan the user has seen.
         requires=(("hydro_input_validated", "通过验证的输入"),
                   ("hydro_planned", "已生成并展示的运行计划")),
-        next_step="任务会在后台执行，可用状态查询跟踪。",
+        next_step="The job runs in the background. Check its status to follow progress.",
     ),
     Operation.CHECK_STATUS: Gate(
         Operation.CHECK_STATUS,
@@ -414,7 +414,7 @@ def require_operation(session: Any, operation: Operation | str) -> Gate:
         raise WorkflowGateError(
             f"当前状态（{state}）不能执行「{operation.value}」",
             next_step=f"该操作只在 {allowed} 中可用。"
-                      + (gate.next_step or "请按当前步骤的提示继续。"),
+                      + (gate.next_step or "Follow the instructions for the current step."),
         )
     for attribute, description in gate.requires:
         if not getattr(session, attribute, None):
@@ -460,30 +460,30 @@ def advance(session: Any, target: WorkflowState | str, *, reason: str = "",
 def pending_action(state: str) -> str:
     """The one thing the workflow is waiting for, in the user's terms."""
     if not is_known_state(state):
-        return "会话状态未知，请开始新的会话。"
-    return PENDING_ACTIONS.get(WorkflowState(state), "请描述你希望做什么。")
+        return "Unknown session state. Start a new session."
+    return PENDING_ACTIONS.get(WorkflowState(state), "Describe what you would like to do.")
 
 
 PENDING_ACTIONS: dict[WorkflowState, str] = {
-    WorkflowState.NEW: "可以选择区县、给出河流名称或经纬度来定位 DEM，再绘制评价范围；已有模型输入包时也可以直接导入。",
-    WorkflowState.NEEDS_LOCATION: "请给出河流名称、所在区县或地图中心经纬度。",
-    WorkflowState.OUTLET_CANDIDATES_READY: "请在定位后的地图上绘制闭合评价边界，并提交覆盖检查。",
-    WorkflowState.WATERSHED_DELINEATED: "请查看流域审核信息与流域图，然后确认或拒绝该边界。",
-    WorkflowState.WATERSHED_QA_FAILED: "流域质量检查未通过，请在地图河道上重新选出水口；当前结果不能确认或用于计算。",
-    WorkflowState.AWAITING_WATERSHED_CONFIRMATION: "请明确确认或拒绝当前流域边界。",
-    WorkflowState.WATERSHED_REJECTED: "请重新定位地图并绘制评价边界，可按区县、河流名称或经纬度定位。",
-    WorkflowState.WATERSHED_CONFIRMED: "请说明降雨事件：指定日期/时段，或使用资料期内样本最大日。",
-    WorkflowState.RAINFALL_READY: "请继续生成模型输入包。",
-    WorkflowState.MODEL_INPUTS_READY: "请把模型输入包导入水文服务。",
-    WorkflowState.HYDRO_INPUT_IMPORTED: "请先验证已导入的输入。",
-    WorkflowState.HYDRO_INPUT_VALIDATED: "请生成运行计划并确认参数。",
-    WorkflowState.HYDRO_PLANNED: "请确认开始运行，或修改参数后重新生成计划。",
-    WorkflowState.HYDRO_RUNNING: "任务正在后台运行；可以查询状态或取消。",
-    WorkflowState.HYDRO_SUCCEEDED: "运行已通过质量门槛，可以查看结果与评价。",
-    WorkflowState.HYDRO_QA_FAILED: "运行未通过质量门槛，只能查看诊断信息；可调整后重新运行。",
-    WorkflowState.HYDRO_FAILED: "运行失败；请查看原因后重新计划。",
-    WorkflowState.HYDRO_CANCELLED: "任务已取消；可以重新计划并运行。",
-    WorkflowState.ASSESSMENT_READY: "初步评价已生成；可以继续追问或查看图件。",
+    WorkflowState.NEW: "Select a district, enter a river name or coordinates, then draw the study area. You can also import an existing model input package.",
+    WorkflowState.NEEDS_LOCATION: "Enter a river name, district or map-centre coordinates.",
+    WorkflowState.OUTLET_CANDIDATES_READY: "Draw a closed boundary on the map and submit it for coverage checks.",
+    WorkflowState.WATERSHED_DELINEATED: "Review the map and boundary checks, then confirm or reject the boundary.",
+    WorkflowState.WATERSHED_QA_FAILED: "The watershed checks failed. Choose a new outlet on the river before proceeding.",
+    WorkflowState.AWAITING_WATERSHED_CONFIRMATION: "Confirm or reject the current watershed boundary.",
+    WorkflowState.WATERSHED_REJECTED: "Choose a location by district, river name or coordinates, then draw the boundary again.",
+    WorkflowState.WATERSHED_CONFIRMED: "Specify a rainfall date or time window, or request the maximum day in the available record.",
+    WorkflowState.RAINFALL_READY: "Create the model input package.",
+    WorkflowState.MODEL_INPUTS_READY: "Import the model input package into the hydrology service.",
+    WorkflowState.HYDRO_INPUT_IMPORTED: "Validate the imported inputs.",
+    WorkflowState.HYDRO_INPUT_VALIDATED: "Build the run plan and review the parameters.",
+    WorkflowState.HYDRO_PLANNED: "Start the run after reviewing the plan, or edit parameters and rebuild it.",
+    WorkflowState.HYDRO_RUNNING: "The job is running. You can check progress or cancel it.",
+    WorkflowState.HYDRO_SUCCEEDED: "The run passed the quality checks. View the results or assessment.",
+    WorkflowState.HYDRO_QA_FAILED: "The run failed quality checks. Review diagnostics before adjusting inputs and rerunning.",
+    WorkflowState.HYDRO_FAILED: "The run failed. Review the error before building a new plan.",
+    WorkflowState.HYDRO_CANCELLED: "The run was cancelled. You can build a new plan and run it.",
+    WorkflowState.ASSESSMENT_READY: "The preliminary assessment is ready. View the figures or ask a follow-up question.",
 }
 
 

@@ -116,7 +116,7 @@ def workspace_view(session):
                        "plan":not dirty and not running and session.hydro_input_validated and (not session.hydro_planned or bool(session.hydro_run_id)),
                        "refresh":bool(session.hydro_run_id),"cancel":running},
             "explanation":("后台计算尚未结束。可刷新进度或取消；结束后可修改并恢复任务版本。" if running else
-                           "修改边界或位置会撤销原确认及下游输入；修改降雨保留边界；修改参数保留验证过的输入并重新展示计划。")}
+                           "Changing the boundary or location resets confirmation and dependent inputs. Changing rainfall keeps the boundary. Parameter changes keep validated inputs and require a new plan.")}
 
 
 def boundary_draft_changed(session):

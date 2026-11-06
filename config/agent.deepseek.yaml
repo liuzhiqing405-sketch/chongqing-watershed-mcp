@@ -7,7 +7,7 @@
 #   $env:SLOPE_AGENT_CONFIG = "config/agent.deepseek.yaml"
 
 schema_version: 1
-language: zh
+language: en
 
 mcp:
   spatial:

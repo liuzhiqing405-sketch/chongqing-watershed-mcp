@@ -310,7 +310,7 @@ class LLMSettings(BaseModel):
             if self.provider in {"grok", "gemini", "qwen"}:
                 return "尚未设置所选模型服务的API Key"
         if not self.base_url and not self.model:
-            return "未配置语言模型地址与模型名"
+            return "Set an API endpoint and model ID."
         return "语言模型配置不完整"
 
 
@@ -318,7 +318,7 @@ class AgentSettings(BaseModel):
     """The whole agent configuration."""
 
     schema_version: int = 1
-    language: Literal["zh", "en"] = "zh"
+    language: Literal["zh", "en"] = "en"
     mcp: MCPSettings = Field(default_factory=MCPSettings)
     sessions: SessionSettings = Field(default_factory=SessionSettings)
     polling: PollingSettings = Field(default_factory=PollingSettings)

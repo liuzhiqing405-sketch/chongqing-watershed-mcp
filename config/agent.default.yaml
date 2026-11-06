@@ -9,7 +9,7 @@
 # written here, never logged and never stored in a session.
 
 schema_version: 1
-language: zh
+language: en
 
 mcp:
   # 两种传输方式对"任务能否活过 CLI"的保证不同，这是本文件最要紧的一处设置：

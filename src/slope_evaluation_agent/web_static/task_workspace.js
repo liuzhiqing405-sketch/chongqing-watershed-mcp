@@ -19,14 +19,14 @@ function saveAreaDraft() {
   if(!area.context?.map_id || !sessionId || busy) return;
   const identifier=sessionId, mapId=area.context.map_id;
   const body={map_id:mapId,coordinates:area.points.map(p=>[...p]),closed:area.closed,assessment_mode:$('#area-assessment-mode').value};
-  $('#area-draft-status').textContent='正在保存边界草稿…';
+  $('#area-draft-status').textContent='Saving boundary draft…';
   draftTimer=setTimeout(async()=>{
     try {
       const data=await api(`/api/v1/sessions/${encodeURIComponent(identifier)}/task/draft`,{
         method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
       if(identifier!==sessionId||mapId!==area.context?.map_id) return;
-      updateSession(data.session); $('#area-draft-status').textContent='草稿已随当前任务保存，刷新后可继续编辑。';
-    } catch(error) { if(identifier===sessionId) $('#area-draft-status').textContent=`草稿未保存：${error.message}`; }
+      updateSession(data.session); $('#area-draft-status').textContent='Draft saved. You can continue editing after refreshing.';
+    } catch(error) { if(identifier===sessionId) $('#area-draft-status').textContent=`Draft not saved: ${error.message}`; }
   },500);
 }
 function drawDiagnosticMarkers(svg) {
@@ -44,15 +44,15 @@ function drawDiagnosticMarkers(svg) {
       marker.setAttribute('points',vertices.map(([dx,dy])=>`${x+dx},${y+dy}`).join(' '));
       marker.setAttribute('fill',kind==='inlet'?'#d11b20':'#111');marker.setAttribute('stroke','#fff');
       marker.setAttribute('stroke-width','2');marker.classList.add('diagnostic-marker');
-      const explanation=`${kind==='inlet'?'框外上游入流点：存在从评价区域外进入的汇水。':'推测出流点：DEM 流向在此离开评价区域。'} ${lon.toFixed(5)}°E, ${lat.toFixed(5)}°N。需结合河网与地形核对。`;
+      const explanation=`${kind==='inlet'?'External inflow: upstream drainage enters the study area here.':'Potential outlet: DEM-derived flow leaves the study area here.'} ${lon.toFixed(5)}°E, ${lat.toFixed(5)}°N. Verify against the river network and terrain.`;
       const title=document.createElementNS('http://www.w3.org/2000/svg','title');title.textContent=explanation;marker.append(title);
       marker.addEventListener('click',event=>{event.stopPropagation();$('#area-diagnostic').textContent=explanation;});svg.append(marker);
     }
   }
 }
-const taskStageNames={sync:'同步输入',validate:'校验输入',delineate:'划分子汇水区',rainfall:'准备降雨',
-  build:'构建模型',rainfall_plot:'降雨图件',swmm:'水文计算',safety:'坡面稳定性计算',
-  analysis:'参数与时序分析',export:'导出成果',stability:'坡面稳定性计算',qa:'质量检查',assessment:'形成评价'};
+const taskStageNames={sync:'Synchronise inputs',validate:'Validate inputs',delineate:'Delineate subcatchments',rainfall:'Prepare rainfall',
+  build:'Build model',rainfall_plot:'Plot rainfall',swmm:'Run hydrology',safety:'Compute slope stability',
+  analysis:'Analyse parameters and time series',export:'Export results',stability:'Compute slope stability',qa:'Quality checks',assessment:'Prepare assessment'};
 function renderTaskWorkspace() {
   const workspace=taskWorkspace||{}, actions=workspace.actions||{};
   $('#cancel-run').disabled=busy;
@@ -61,21 +61,21 @@ function renderTaskWorkspace() {
     ['task-prepare','prepare'],['task-plan','plan'],['task-start','start'],['task-refresh','refresh']])
     $('#'+id).disabled=busy||!actions[key];
   $('#task-restore').disabled=busy||!actions.restore||!$('#task-revision').value;
-  $('#task-explanation').textContent=workspace.explanation||'任务输入、边界草稿和版本会自动保存。';
+  $('#task-explanation').textContent=workspace.explanation||'Task inputs, boundary drafts and revisions are saved automatically.';
   // Boundary checks remain in task evidence and map editing, available on
   // request. They are not repeated as a permanent sidebar report.
   const run=workspace.run_detail||{}, submitted=workspace.background?.run?.submitted;
-  const statuses={queued:'排队中',running:'运行中',succeeded:'计算完成',qa_failed:'计算完成，质量未通过',failed:'计算失败',cancelled:'已取消',interrupted:'已中断'};
+  const statuses={queued:'Queued',running:'Running',succeeded:'Run completed',qa_failed:'Run completed, quality checks failed',failed:'Run failed',cancelled:'Cancelled',interrupted:'Interrupted'};
   const status=run.status||workspace.background?.run?.status;
-  let explanation=submitted?(statuses[status]||'已提交，需刷新确认真实状态'):'尚未提交计算任务';
+  let explanation=submitted?(statuses[status]||'Submitted. Refresh to check status.'):'No run submitted';
   if(run.current_stage||run.stage) explanation+=` · ${taskStageNames[run.current_stage||run.stage]||run.current_stage||run.stage}`;
-  if(Number.isFinite(run.progress_percent)) explanation+=` · ${run.progress_percent.toFixed(1)}%（后台报告）`;
+  if(Number.isFinite(run.progress_percent)) explanation+=` · ${run.progress_percent.toFixed(1)}% (reported by the service)`;
   $('#task-run-explanation').textContent=explanation;
   const list=$('#task-stages');list.replaceChildren();
   const completed=new Set(run.completed_stages||[]);
   for(const stage of run.stages||[]) {
     const name=typeof stage==='string'?stage:stage.stage_id||stage.name||stage.stage||'';
-    const row=document.createElement('li');row.textContent=`${taskStageNames[name]||name}：${completed.has(name)?'已完成':name===(run.current_stage||run.stage)?(['running','queued'].includes(status)?'处理中':'停止于此阶段'):'待处理'}`;list.append(row);
+    const row=document.createElement('li');row.textContent=`${taskStageNames[name]||name}:${completed.has(name)?'Completed':name===(run.current_stage||run.stage)?(['running','queued'].includes(status)?'In progress':'Stopped at this stage'):'Pending'}`;list.append(row);
   }
   const error=run.error||(run.qa_errors?.length?run.qa_errors.join('\n'):null)||run.errors||workspace.last_error;
   $('#task-error').textContent=error?(typeof error==='string'?error:JSON.stringify(error)):'';
@@ -88,11 +88,11 @@ async function loadTaskRevisions() {
     if(revisionChoiceSession!==identifier) {revisionChoice=null;revisionChoiceSession=identifier;}
     const select=$('#task-revision'), selected=revisionChoice;select.replaceChildren();
     for(const row of data.revisions||[]) {const option=document.createElement('option');option.value=row.revision_id;
-      option.textContent=`${row.label} · ${row.location||'位置未定'} · ${new Date(row.at).toLocaleString()}`;select.append(option);}
-    if(!select.options.length) {const option=document.createElement('option');option.value='';option.textContent='尚无历史版本';select.append(option);}
+      option.textContent=`${row.label} · ${row.location||'Location unspecified'} · ${new Date(row.at).toLocaleString()}`;select.append(option);}
+    if(!select.options.length) {const option=document.createElement('option');option.value='';option.textContent='No saved revisions';select.append(option);}
     if([...select.options].some(o=>o.value===selected)) select.value=selected;
     renderTaskWorkspace();
-  } catch(error) { $('#task-explanation').textContent=`版本读取失败：${error.message}`; }
+  } catch(error) { $('#task-explanation').textContent=`Could not load revisions: ${error.message}`; }
 }
 async function taskMutation(action,body={}) {
   if(busy||!sessionId) return null;busy=true;sendButton.disabled=true;renderTaskWorkspace();
@@ -113,14 +113,14 @@ function openSavedDrawing(qa=null) {
   if(area.points.length>1&&area.points[0][0]===area.points.at(-1)[0]&&area.points[0][1]===area.points.at(-1)[1]) area.points.pop();
   area.closed=draft.coordinates!==undefined?draft.closed:area.points.length>=3;
   area.qa=qa||taskWorkspace.spatial_qa;areaDraw();
-  areaHint('可拖动顶点修改边界，修改后重新提交检查。诊断点依据上次已检查的边界。');
+  areaHint('Drag vertices to edit the boundary and submit it again. Diagnostics reflect the last checked boundary.');
 }
 function showTaskSettings(scope) {
   taskSettingsScope=scope;$('#task-settings').hidden=false;$('#task-settings-error').textContent='';
   for(const id of ['task-rainfall-label','task-rainfall','task-station-count-label','task-station-count']) $('#'+id).hidden=scope!=='rainfall';
   for(const id of ['task-preset-label','task-preset','task-overrides-label','task-overrides']) $('#'+id).hidden=scope!=='parameters';
   const rain=taskWorkspace?.rainfall||{};
-  $('#task-rainfall').value=rain.date||(rain.start_datetime?`${rain.start_datetime} ~ ${rain.end_datetime}`:rain.mode==='historical_max'?'历史最大日':'');
+  $('#task-rainfall').value=rain.date||(rain.start_datetime?`${rain.start_datetime} ~ ${rain.end_datetime}`:rain.mode==='historical_max'?'historical maximum':'');
   $('#task-station-count').value=rain.station_count??'';
   $('#task-preset').value=taskWorkspace?.parameters?.preset||'medium';
   $('#task-overrides').value=Object.entries(taskWorkspace?.parameters?.overrides||{}).map(([key,value])=>`${key}=${value}`).join('\n');
@@ -128,8 +128,8 @@ function showTaskSettings(scope) {
 document.querySelector('#area-zoom-in').addEventListener('click',()=>areaZoom(area.zoom+.5));
 function areaPolicyNote() {
   $('#area-policy-note').textContent=$('#area-assessment-mode').value==='regional_screening'
-    ?'允许选择局部区域；仅计算框内降雨产流与坡面响应，不计框外上游入流。诊断仍会标记边界局限。'
-    :'明显框外上游汇水或诊断不确定会阻止确认；通过仍只计算框内降雨，需人工核对，不能保证完整自然流域。';
+    ?'The model uses rainfall inside the boundary and excludes external inflow. Diagnostics flag boundary limitations.'
+    :'External inflow or uncertain diagnostics block confirmation. Review the result manually. Calculations still use rainfall inside the boundary.';
 }
 document.querySelector('#area-assessment-mode').addEventListener('change',()=>{areaPolicyNote();saveAreaDraft();});
 document.querySelector('#area-zoom-out').addEventListener('click',()=>areaZoom(area.zoom-.5));
@@ -157,18 +157,18 @@ document.querySelector('#task-settings-save').addEventListener('click',async()=>
     let body={scope:taskSettingsScope};
     if(taskSettingsScope==='rainfall') {
       const health=await api('/api/v1/health');
-      if(!health.adaptive_rainfall_stations) throw new Error('当前 WebUI 仍运行旧版本，请重启后再修改虚拟雨站数量。');
+      if(!health.adaptive_rainfall_stations) throw new Error('Restart the web service before editing the virtual gauge count.');
       const text=$('#task-rainfall').value.trim();
       const countText=$('#task-station-count').value.trim();
       const stationCount=countText===''?null:Number(countText);
-      if(stationCount!==null&&(!Number.isInteger(stationCount)||stationCount<1||stationCount>100)) throw new Error('虚拟雨站数量须为1～100的整数，留空则按面积自动确定。');
-      if(text==='历史最大日') body.rainfall={mode:'historical_max',lookback_years:30};
+      if(stationCount!==null&&(!Number.isInteger(stationCount)||stationCount<1||stationCount>100)) throw new Error('Enter an integer between 1 and 100, or leave blank to select by area.');
+      if(text==='historical maximum') body.rainfall={mode:'historical_max',lookback_years:30};
       else if(text.includes('~')) {const [start,end]=text.split('~').map(s=>s.trim());body.rainfall={mode:'explicit_period',start_datetime:start,end_datetime:end};}
       else body.rainfall={mode:'explicit_period',date:text};
       body.rainfall.station_count=stationCount;
     } else {
       const overrides={};for(const line of $('#task-overrides').value.split('\n').filter(s=>s.trim())) {
-        const parts=line.split('=');if(parts.length!==2||!parts[0].trim()||!parts[1].trim()||!Number.isFinite(Number(parts[1]))) throw new Error('参数请逐行填写 名称=有限数值。');
+        const parts=line.split('=');if(parts.length!==2||!parts[0].trim()||!parts[1].trim()||!Number.isFinite(Number(parts[1]))) throw new Error('Enter one parameter per line as name=number.');
         overrides[parts[0].trim()]=Number(parts[1]);
       }
       body={...body,parameter_preset:$('#task-preset').value,parameter_overrides:overrides};
@@ -179,8 +179,8 @@ document.querySelector('#task-settings-save').addEventListener('click',async()=>
 });
 document.querySelector('#task-revision').addEventListener('change',()=>{revisionChoice=$('#task-revision').value;renderTaskWorkspace();});
 document.querySelector('#task-restore').addEventListener('click',async()=>{const data=await taskMutation('restore',{revision_id:$('#task-revision').value});if(data?.reply.ok) openSavedDrawing();});
-document.querySelector('#task-confirm').addEventListener('click',()=>send('确认该边界'));
+document.querySelector('#task-confirm').addEventListener('click',()=>send('confirm boundary'));
 document.querySelector('#task-prepare').addEventListener('click',()=>taskMutation('prepare'));
 document.querySelector('#task-plan').addEventListener('click',()=>taskMutation('plan'));
-document.querySelector('#task-start').addEventListener('click',()=>send('开始运行'));
-document.querySelector('#task-refresh').addEventListener('click',()=>send('查看当前任务进度'));
+document.querySelector('#task-start').addEventListener('click',()=>send('start run'));
+document.querySelector('#task-refresh').addEventListener('click',()=>send('check progress'));
