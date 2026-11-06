@@ -34,7 +34,7 @@ htmlcov/
 .env.*
 !.env.example
 
-# Local experiments and manuscript figure outputs
+# Local experiments and generated outputs
 output/
 pytest_tmp*/
 

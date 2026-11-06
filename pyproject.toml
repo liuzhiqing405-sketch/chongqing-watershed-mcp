@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "chongqing-watershed-mcp"
 version = "1.0"
-description = "Two independent MCP servers for Chongqing small-watershed spatial processing and hydro/stability modelling"
+description = "Agent and MCP services for spatial processing, rainfall-runoff and slope-stability modelling in Chongqing"
 requires-python = ">=3.12"
 dependencies = [
   "mcp>=2.2,<3",

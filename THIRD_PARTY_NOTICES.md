@@ -1,4 +1,8 @@
-# Coordinate conversion
+# Third-party notices
+
+See the [data guide](data/README.md) for dataset sources and usage terms.
+
+## Coordinate conversion
 
 The forward GCJ-02 conversion formula in
 `src/chongqing_spatial_mcp/coordinate_conversion.py` is adapted from
