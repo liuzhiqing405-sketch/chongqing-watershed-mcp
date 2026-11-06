@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#02529f">
+  <meta name="description" content="重庆中小流域坡面稳定性初步评价智能体">
+  <title>重庆中小流域坡面稳定性评价智能体</title>
+  <link rel="stylesheet" href="/assets/app.css?v=20261029-multi-provider">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="重庆中小流域坡面稳定性评价智能体">
+      <span><b>重庆中小流域坡面稳定性评价智能体</b><small>AGENT · MCP · SCIENTIFIC AUDIT</small></span>
+    </a>
+    <div class="top-actions">
+      <span class="service-state" id="service-state"><i></i><span>正在检查服务</span></span>
+      <button type="button" class="model-chip" id="model-chip" title="设置模型连接" aria-label="设置模型连接">正在识别模型 · 设置</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <aside class="side-card session-panel" aria-label="会话信息">
+      <div class="side-heading"><span>当前会话</span><button id="new-session" type="button">新建</button></div>
+      <dl class="session-facts">
+        <div><dt>会话编号</dt><dd id="session-id">—</dd></div>
+        <div><dt>工作流状态</dt><dd id="session-state">初始化</dd></div>
+        <div><dt>当前待办</dt><dd id="pending-action">等待输入</dd></div>
+        <div><dt>水文任务</dt><dd id="run-status">尚未提交</dd></div>
+        <div><dt>已确定</dt><dd id="session-summary">—</dd></div>
+      </dl>
+      <section class="task-controls" aria-label="当前任务操作">
+        <strong>在本任务中修改与恢复</strong>
+        <p id="task-explanation">任务输入、边界草稿和版本会自动保存。</p>
+        <div class="task-button-grid">
+          <button id="task-edit-location" type="button">修改位置</button>
+          <button id="task-edit-boundary" type="button" disabled>编辑原边界</button>
+          <button id="task-edit-rainfall" type="button" disabled>修改降雨</button>
+          <button id="task-edit-parameters" type="button">修改参数</button>
+        </div>
+        <label for="task-revision">已保存任务版本</label>
+        <select id="task-revision"><option value="">尚无历史版本</option></select>
+        <button id="task-restore" class="secondary" type="button" disabled>恢复所选版本</button>
+        <div id="task-settings" hidden>
+          <label id="task-rainfall-label" for="task-rainfall">降雨日期或样本最大日</label>
+          <input id="task-rainfall" placeholder="2024-07-30 或 历史最大日">
+          <label id="task-station-count-label" for="task-station-count">虚拟雨站数量（留空按选区面积自动确定）</label>
+          <input id="task-station-count" type="number" min="1" max="100" step="1" placeholder="自动；或填写1～100">
+          <label id="task-preset-label" for="task-preset">参数预设</label>
+          <select id="task-preset" title="默认及未匹配地类的参数；已匹配地类仍按地类参数表赋值"><option value="low">较弱强度</option><option value="medium">基准强度</option><option value="high">较强强度</option></select>
+          <label id="task-overrides-label" for="task-overrides">明确覆盖的参数（留空使用预设）</label>
+          <textarea id="task-overrides" rows="3" placeholder="saturated_cohesion_kpa=15"></textarea>
+          <button id="task-settings-save" type="button">保存修改</button>
+          <button id="task-settings-close" type="button">收起</button>
+          <p id="task-settings-error" role="status"></p>
+        </div>
+      </section>
+      <section class="history-section" aria-labelledby="history-title">
+        <div class="history-heading">
+          <span id="history-title">历史对话</span>
+          <small>自动保存</small>
+          <button id="history-manage" type="button" aria-expanded="false" aria-controls="history-toolbar">批量管理</button>
+        </div>
+        <div id="history-toolbar" class="history-toolbar" hidden>
+          <label class="history-select-all"><input id="history-select-all" type="checkbox">全选列表</label>
+          <span id="history-selected-count">已选 0 段</span>
+          <button id="history-delete-selected" type="button" disabled>删除所选</button>
+        </div>
+        <div id="history-list" class="history-list" aria-live="polite"></div>
+        <p id="history-status" class="history-status" role="status" hidden></p>
+      </section>
+      <button id="cancel-run" class="secondary danger" type="button" hidden>取消当前任务</button>
+      <div class="boundary-note">本系统用于区域尺度、降雨事件驱动的坡面稳定性初步筛查与诊断，不构成工程安全鉴定或灾害预报。</div>
+    </aside>
+
+    <section class="chat-card" aria-labelledby="chat-title">
+      <div class="chat-intro">
+        <p class="eyebrow">CHONGQING WATERSHED INTELLIGENCE</p>
+        <h1 id="chat-title">交流工程知识，或开始流域评价</h1>
+        <p>可以直接问水文地质、地质灾害与工程原理；需要坡面稳定性分析时，描述位置和降雨事件，我会把你的需求转成逐步确认、可执行的计算流程。</p>
+      </div>
+      <div id="conversation" class="conversation" aria-live="polite"></div>
+      <div class="quick-actions" id="quick-actions">
+        <span class="quick-actions-label">可以这样说（只是示例，不必照抄）：</span>
+        <button type="button" data-action="area-picker">按区县绘制评价区域</button>
+        <button type="button" data-action="outlet-picker">按河名或坐标定位</button>
+        <button type="button" data-prompt="东经 108.03、北纬 30.44">给一个坐标</button>
+        <button type="button" data-prompt="地下水如何影响边坡稳定性？">问一个工程问题</button>
+        <button type="button" data-action="scope">能力边界</button>
+      </div>
+      <form id="composer" class="composer" autocomplete="off">
+        <label class="sr-only" for="message-input">输入消息</label>
+        <textarea id="message-input" rows="1" maxlength="20000" placeholder="描述你想评价的位置、降雨事件，或直接提问"></textarea>
+        <button id="send-button" type="submit" aria-label="发送消息">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 4 17 8-17 8 3-8-3-8Zm3.5 7h8.2L7 6.9 8.5 11Zm0 2L7 17.1l8.7-4.1H7.5Z"/></svg>
+        </button>
+      </form>
+      <p class="privacy-note">密钥仅从进程环境读取；模型不可用时，计算使用规则解析，知识问答回退内置说明。</p>
+      <p class="developer-credit">开发者：重庆大学土木工程学院</p>
+    </section>
+
+    <aside class="side-card workflow-panel" aria-label="工作流进度">
+      <div class="side-heading"><span>评价流程</span><b id="progress-value">步骤 1/5</b></div>
+      <div class="progress-track"><i id="progress-bar"></i></div>
+      <ol class="workflow-steps" id="workflow-steps">
+        <li data-step="location"><i>1</i><span>选择评价区域</span></li>
+        <li data-step="watershed"><i>2</i><span>边界检查与确认</span></li>
+        <li data-step="rainfall"><i>3</i><span>降雨与输入准备</span></li>
+        <li data-step="hydro"><i>4</i><span>水文及稳定性计算</span></li>
+        <li data-step="assessment"><i>5</i><span>质量门槛与评价</span></li>
+      </ol>
+      <small class="workflow-caption">上方表示流程位置。计算进度以后台报告的阶段和百分比为准。</small>
+      <section class="task-status" aria-label="检查与运行解释">
+        <strong>真实运行进度</strong><p id="task-run-explanation">尚未提交计算任务</p>
+        <ol id="task-stages"></ol><p id="task-error" role="status"></p>
+        <div class="task-button-grid">
+          <button id="task-confirm" type="button" disabled>确认边界</button>
+          <button id="task-prepare" type="button" disabled>准备降雨与输入</button>
+          <button id="task-plan" type="button" disabled>生成新计划</button>
+          <button id="task-start" type="button" disabled>按计划运行</button>
+          <button id="task-refresh" type="button" disabled>刷新进度</button>
+        </div>
+      </section>
+      <div class="science-card"><span>输出原则</span><strong>工程知识标明来源，计算结果依据真实成果</strong><small>计算回复复核字段、单位、精度和适用边界；知识解答不充当本次评价结论。</small></div>
+    </aside>
+  </main>
+
+  <section id="outlet-picker" class="picker" hidden aria-label="交互式选择出水口">
+    <div class="picker-card" role="dialog" aria-modal="true" aria-labelledby="picker-title">
+      <header class="picker-head">
+        <div>
+          <b id="picker-title">在地图上选出水口</b>
+          <small>在河道上点击你要分析的出水口，查看坐标后再划分流域。</small>
+        </div>
+        <button id="picker-close" class="picker-close" type="button" aria-label="关闭">×</button>
+      </header>
+      <div class="picker-controls">
+        <label class="sr-only" for="picker-river">河流名称</label>
+        <input id="picker-river" type="text" maxlength="64" placeholder="输入河流名称，例如：临江河">
+        <button id="picker-load" type="button">加载选址地图</button>
+      </div>
+      <p class="picker-hint" id="picker-hint">输入河名加载地图，然后在河道上点选出水口。</p>
+      <div class="picker-body">
+        <div class="picker-mapwrap" id="picker-mapwrap">
+          <img id="picker-map" alt="出水口选址底图" hidden>
+          <span id="picker-marker" class="picker-marker" hidden></span>
+        </div>
+        <aside class="picker-side">
+          <div class="picker-block">
+            <span class="picker-side-title">已选点位</span>
+            <p class="picker-selected" id="picker-selected-text">尚未选择</p>
+            <p class="picker-selected-note" id="picker-selected-note"></p>
+          </div>
+          <button id="picker-use" class="picker-use" type="button" disabled>用这个点划分流域</button>
+          <div class="picker-fallback">
+            <label class="sr-only" for="picker-coord">大致坐标</label>
+            <input id="picker-coord" type="text" maxlength="48" placeholder="河名查不到时用：105.90, 29.35">
+            <button id="picker-coord-use" type="button">按坐标划分</button>
+          </div>
+          <p class="picker-foot">选定后仍需在会话里经过流域划分与人工确认两步，才不会直接进入计算。</p>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <section id="area-picker" class="picker" hidden aria-label="绘制评价区域">
+    <div class="picker-card" role="dialog" aria-modal="true" aria-labelledby="area-title">
+      <header class="picker-head"><div><b id="area-title">在 DEM 上绘制评价区域</b>
+        <small>按区县、具体河名或经纬度加载 DEM，再逐点绘制并闭合评价范围。</small></div>
+        <button id="area-close" class="picker-close" type="button" aria-label="关闭">×</button></header>
+      <div class="picker-controls"><label for="area-mode">定位方式</label>
+        <select id="area-mode"><option value="district">行政区县</option><option value="river">河流名称</option><option value="coordinates">经纬度</option></select>
+        <label id="area-district-label" for="area-district">区县</label>
+        <select id="area-district"><option value="">正在读取区县列表</option></select>
+        <input id="area-river" aria-label="河流名称" placeholder="请输入具体河名" maxlength="64" hidden>
+        <input id="area-coordinates" aria-label="地图中心经纬度" placeholder="经度, 纬度，例如 105.90, 29.35" hidden>
+        <button id="area-load" type="button">加载 DEM 底图</button></div>
+      <p id="area-hint" class="picker-hint">底图沿行政区边界裁切，计算范围以你绘制并确认的边界为准。</p>
+      <div class="picker-controls"><label for="area-assessment-mode">评价方式</label>
+        <select id="area-assessment-mode"><option value="regional_screening">区域评价：按框内降雨建模</option><option value="catchment_check">上游来水严格检查</option></select></div>
+      <p id="area-policy-note" class="picker-hint">允许选择局部区域；仅计算框内降雨产流与坡面响应，不计框外上游入流。诊断仍会标记边界局限。</p>
+      <div class="map-toolbar" aria-label="地图操作"><button id="area-zoom-out" type="button">缩小</button>
+        <span id="area-zoom-label">100%</span><button id="area-zoom-in" type="button">放大</button>
+        <button id="area-zoom-reset" type="button">适应窗口</button><span>放大后滚动查看；拖动顶点修改边界，点击诊断点查看含义。</span></div>
+      <div class="picker-body"><div id="area-mapwrap" class="picker-mapwrap"><div id="area-stage">
+        <img id="area-map" alt="DEM 评价范围绘图区" hidden>
+        <svg id="area-lines" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-label="可编辑边界与水文诊断点"></svg></div></div>
+        <aside class="picker-side"><div class="picker-block"><span class="picker-side-title">绘制边界</span>
+          <p id="area-status">尚未绘制</p><p class="picker-selected-note">建议沿山脊、分水岭圈定区域。人工绘制边界将作为评价范围，区域内部再按地形划分子汇水区。</p></div>
+          <button id="area-undo" class="secondary" type="button" disabled>撤销上一点</button>
+          <button id="area-redo" class="secondary" type="button" disabled>重做</button>
+          <button id="area-clear" class="secondary" type="button" disabled>清空重画</button>
+          <button id="area-finish" class="secondary" type="button" disabled>闭合边界</button>
+          <button id="area-use" class="picker-use" type="button" disabled>提交边界检查</button>
+          <p id="area-draft-status" class="picker-foot">草稿随当前任务保存。</p>
+          <div id="area-diagnostic" class="picker-block">黑星为推测出流，红三角为框外入流；可建模仍需人工核对边界与来水假设。</div>
+          <p class="picker-foot">提交会核对覆盖与水文合理性。修改后的边界需重新确认，之后才可建模。</p></aside></div>
+    </div>
+  </section>
+
+  <template id="assistant-template">
+    <article class="message assistant">
+      <span class="avatar" aria-hidden="true">AI</span>
+      <div class="bubble"></div>
+    </article>
+  </template>
+  <template id="user-template">
+    <article class="message user"><div class="bubble"></div></article>
+  </template>
+  <dialog id="model-connection-dialog" aria-labelledby="model-connection-title">
+    <form id="model-connection-form" autocomplete="off">
+      <header class="connection-heading"><div><h2 id="model-connection-title">模型连接</h2><p>模型与推理设置应用到当前服务，密钥只保存在内存。</p></div><button type="button" id="connection-close" aria-label="关闭模型设置">×</button></header>
+      <div class="connection-fields">
+        <label class="connection-wide">API 地址 <input id="connection-url" type="url" required placeholder="https://4router.net/v1" maxlength="2048"></label>
+        <div class="connection-wide connection-shortcuts"><button type="button" id="connection-fourrouter">4Router GPT</button><button type="button" id="connection-fourrouter-claude">4Router Claude</button><button type="button" id="connection-fourrouter-grok">4Router Grok</button><button type="button" id="connection-fourrouter-gemini">4Router Gemini</button><button type="button" id="connection-fourrouter-qwen">4Router Qwen</button><button type="button" id="connection-deepseek">DeepSeek直连</button></div>
+        <label class="connection-wide">API 密钥 <input id="connection-key" type="password" autocomplete="new-password" placeholder="填写密钥；地址未变时可留空沿用" maxlength="4096"></label>
+        <label>服务类型 <select id="connection-provider"><option value="openai-compatible">GPT / OpenAI兼容</option><option value="deepseek">DeepSeek 官方直连</option><option value="anthropic">Claude（4Router）</option><option value="grok">Grok（4Router）</option><option value="gemini">Gemini（4Router）</option><option value="qwen">Qwen（4Router）</option></select></label>
+        <label>接口协议 <select id="connection-format"><option value="chat_completions">Chat Completions</option><option value="responses">Responses</option><option value="anthropic_messages">Anthropic Messages</option><option value="gemini_generate_content">Gemini GenerateContent</option></select></label>
+        <label class="connection-wide">模型名称 <div class="connection-model-row"><input id="connection-model" list="connection-models" maxlength="200" placeholder="读取列表后选择，或手动填写模型 ID" required><button id="connection-list" type="button">读取模型</button></div><datalist id="connection-models"></datalist></label>
+        <label class="connection-wide" id="connection-candidates-label" hidden>接口返回的候选模型 <select id="connection-candidates"><option value="">请选择模型</option></select><span id="connection-model-note" class="connection-help" aria-live="polite"></span></label>
+        <label>推理强度 <select id="connection-effort"><option value="">默认，不额外指定</option></select></label>
+        <label id="connection-thinking-label">DeepSeek 思考模式 <select id="connection-thinking"><option value="disabled">关闭</option><option value="enabled">开启</option></select></label>
+        <label id="connection-anthropic-thinking-label" hidden>Claude 思考模式 <select id="connection-anthropic-thinking"><option value="default">模型默认，不额外指定</option><option value="disabled">关闭（模型须支持）</option><option value="adaptive">自适应思考</option><option value="enabled">固定思考预算（旧版模型）</option></select></label>
+        <label id="connection-anthropic-budget-label" hidden>Claude 思考 token 预算 <input id="connection-anthropic-budget" type="number" min="1024" max="31000" value="1024" step="1"></label>
+        <label id="connection-qwen-thinking-label" hidden>Qwen 思考模式 <select id="connection-qwen-thinking"><option value="default">模型默认，不额外指定</option><option value="enabled">开启（模型须支持）</option><option value="disabled">关闭（模型须支持）</option></select></label>
+        <label id="connection-qwen-budget-label" hidden>Qwen 思考预算（可选） <input id="connection-qwen-budget" type="number" min="0" max="262144" step="1" placeholder="留空不指定，与推理强度二选一"></label>
+        <label id="connection-gemini-budget-label" hidden>Gemini 思考预算（可选） <input id="connection-gemini-budget" type="number" min="-1" max="32768" step="1" placeholder="留空不指定；-1自动，0关闭须模型支持"></label>
+        <label>温度 <select id="connection-temperature"><option value="">服务默认，不发送温度</option><option value="0">0</option><option value="0.3">0.3</option><option value="0.7">0.7</option><option value="1">1</option></select></label>
+        <label>生成 token 上限 <input id="connection-tokens" type="number" min="64" max="32000" step="1" value="8192" required></label>
+        <label>请求超时（秒） <input id="connection-timeout" type="number" min="1" max="600" value="120" required></label>
+        <label class="connection-checkbox"><input id="connection-json" type="checkbox" checked>请求 JSON 格式</label>
+        <label class="connection-checkbox" id="connection-stream-label"><input id="connection-stream" type="checkbox">Chat流式传输（Qwen默认开启）</label>
+      </div>
+      <p class="connection-help" id="connection-help">推理选项取决于所选模型。生成上限可能同时包含思考与最终回答；不支持的设置会在连接测试中报告。</p>
+      <p id="connection-status" class="connection-status" role="status" aria-live="polite"></p>
+      <footer class="connection-footer"><button type="button" id="connection-check">测试连接</button><button type="submit" id="connection-apply">应用连接</button></footer>
+      <p class="connection-footnote">测试连接会检查JSON回答及两条基础意图，产生少量用量，不启动计算、不写入对话历史。重启服务后需重新提供密钥。</p>
+    </form>
+  </dialog>
+  <script src="/assets/task_workspace.js?v=20261023-concise" defer></script>
+  <script src="/assets/app.js?v=20261029-model-connection" defer></script>
+  <script src="/assets/model_connection.js?v=20261029-check-diagnostics" defer></script>
+</body>
+</html>

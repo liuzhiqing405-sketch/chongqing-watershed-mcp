@@ -1,0 +1,120 @@
+# Defaults for the spatial MCP.
+#
+# Filenames are resolved inside the managed data root (``CQ_DATA_ROOT`` or the
+# repository's ``data/`` directory); the delineation numbers are the thresholds
+# the outlet search and watershed QA use. Nothing here names a drive letter.
+
+datasets:
+  administrative_boundaries: administrative_districts.wgs84.geojson
+  dem: 重庆.tif
+  rivers: 重庆市_水系.shp
+  #: Reference lines on selection maps, independent of named/calculation data.
+  display_rivers: chongqing_reference_rivers.shp
+  landuse: landuse_2023_UTM49N.shp
+  boundary: 重庆市_中华人民共和国.shp
+  rainfall_directory: water/逐时降水_宽表
+  rainfall_pattern: ERA5_重庆逐时降水_*.csv
+
+#: Attribute encoding to assume when a Shapefile has no .cpg sidecar.
+vector_fallback_encoding: gbk
+
+map_display:
+  river_label: Natural Earth 主要河流（圈选参考）
+
+# 手绘后的水文诊断独立读取框外原始 DEM，保持原生分辨率。
+# 阈值是本项目筛查容差，不是工程规范；通过不等于验证完整自然流域。
+drawn_area_hydrology:
+  initial_buffer_m: 1000.0
+  maximum_attempts: 3
+  maximum_cells: 4000000
+  # 框外贡献面积 / 框内面积；严格检查的拒绝阈值，区域评价中只提示。
+  maximum_external_area_fraction: 0.05
+  minimum_channel_area_km2: 0.02
+  minimum_outlet_area_fraction: 0.01
+  context_stability_tolerance: 0.01
+
+model_inputs:
+  drainage_context_buffer_m: 1000.0
+  # 与边界提交共用 delineation.maximum_processing_cells，计入完整外围窗口。
+  # 如需更严格的旧配置，可显式设置 drainage_context_maximum_cells；提交时也会检查。
+
+delineation:
+  #: A watershed smaller than this is refused confirmation.
+  minimum_area_km2: 1.8
+  #: Snapped outlets for a named river must remain close to its local water polygon.
+  #: This is a data consistency tolerance, not proof of the whole river basin.
+  maximum_river_distance_m: 300.0
+  #: Named-river snapping may search farther, but only inside the target water
+  #: polygon plus half a raster-cell diagonal. Other river water polygons are
+  #: excluded. Failure to find a usable channel blocks confirmation.
+  maximum_named_river_snap_distance_m: 500.0
+  #: Priority-Flood is run on at most this many cells per request. This is what
+  #: decides how coarse a grown window gets: with 8M cells a 90 km window still
+  #: reads at 32 m, so growing the window usually costs time rather than
+  #: resolution. Measured: ~17 s per 2M-cell attempt on the dev machine.
+  maximum_processing_cells: 8000000
+  #: The finest grid a window may be read at — the DEM's own resolution. A
+  #: window is never resampled finer than this; it may only get coarser (see
+  #: maximum_cell_size_m) as the window grows under a fixed cell budget.
+  minimum_cell_size_m: 30.0
+  #: The requested window has to stay this far inside the DEM edge.
+  edge_clearance_km: 10.0
+  #: Minimum spacing between recommended outlet candidates.
+  candidate_spacing_km: 2.5
+  #: Vertices sampled per river feature when searching for outlet candidates.
+  river_vertex_sample: 300
+
+  # --- 自适应的处理范围（按流域裁切，而不是固定方窗）----------------------------
+  # 流域比处理范围大时，范围的边缘会把流域切掉，而 QA 会因此拒绝确认该边界——
+  # 换出水口没用（同一条河上的候选都被同样切开）。所以处理范围按流域自己长大：
+  #
+  #   1. 先用初始范围划一次（默认 20 km，即以出水口为中心 40 km 见方）；
+  #   2. 被切到的方向按倍数外扩（20→30→45→67.5→100 km），其余方向保持不变；
+  #   3. 不触边之后**再放大一圈确认**：只有流域在更大范围下仍不变，才算完整。
+  #
+  # ⚠️ 不要改成"把范围缩到流域包围盒"：本服务的填洼是从栅格边界播种的，
+  # 平坦区的流向因此依赖范围本身。实测同一出口在收紧后的 33×22 km 裁切上给出
+  # "不触边"的 252 km²，而在 90 km 方窗上给出 1270 km²（仍触北界）——收紧会制造
+  # 假通过。所以只许长大，完整性由"再长一圈仍不变"来确认。
+  adaptive_window: true
+  #: 被切到的方向每次外扩的倍数。
+  window_growth_factor: 1.5
+  #: 最多尝试几次（含第一次与确认）。实测每次约 17 秒 / 2M 像素。
+  maximum_window_attempts: 7
+  #: 确认时四边各外扩多少公里，然后比较流域是否不变。
+  window_confirm_margin_km: 5.0
+  #: 面积相对容差：两次范围的流域面积差在此比例内视为"同一个流域"。
+  window_stability_tolerance: 0.01
+  #: 流域必须离处理范围四边至少这么远（km）才算可信。范围边缘处的填洼是从边界
+  #: 播种的、平坦区流向因此受范围影响，"仅仅装得下"会给出假完整——实测同一出口
+  #: 同一吸附点：60×50 km 范围给出"不触边且稳定"的 253 km²，80×80 km 给出
+  #: 1011 km² 且仍触北、东界。
+  window_interior_margin_km: 10.0
+  #: 半窗口上限，与 delineate_from_outlet 工具签名的上限一致。
+  maximum_half_window_km: 100.0
+  #: 栅格不得比这更粗。固定 cell 预算下窗口越大栅格越粗，而更粗的栅格上
+  #: 画出的边界是另一个边界——超过这个上限就停止放大并说明原因，而不是
+  #: 偷偷降低分辨率。
+  maximum_cell_size_m: 100.0
+  #: 自适应过程的总时间预算（秒）。一次划分约需数十秒到数分钟。
+  window_time_budget_s: 900.0
+  #: 流域边缘与 DEM 无数据区接触的容忍比例。市界附近的流域常在边缘蹭到几
+  #: 十个无数据像元（实测 152/310105 = 0.05%），那是边界擦碰而不是跨界截断；
+  #: 低于此比例只作为提示（qa.notes），高于才按错误处理——否则真问题
+  #: （窗口太小）会被这条噪音盖住。
+  minimum_nodata_contact_fraction: 0.005
+
+#: Station selection for the ERA5 virtual-rainfall package.
+rainfall:
+  #: Global builder: existing ERA5 sources first, interior proxies for outside
+  #: centres; fill deficits by ERA5 interpolation at distinct interior points.
+  #: The density is a sampling heuristic, not a measured-gauge standard.
+  automatic_station_area_km2: 80.0
+  automatic_station_minimum: 1
+  automatic_station_maximum: 20
+  #: If any ERA5 source grid used to interpolate an in-basin virtual station
+  #: is farther than this, report a representativeness warning (degrees).
+  maximum_station_distance_deg: 1.0
+  #: Number of nearest ERA5 source points considered if a complete bilinear
+  #: cell is unavailable near the edge of the rainfall grid.
+  fallback_pool_multiplier: 4

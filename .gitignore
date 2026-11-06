@@ -1,0 +1,60 @@
+# Virtual environments
+.venv/
+.venv-*/
+
+# Python build and cache artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+
+# Run outputs: reviews, rainfall packages, model inputs, jobs, figures
+runs/
+
+# Persistent MCP service logs and their PID records
+logs/
+
+# Exchange packages are data, not source; the folders themselves are kept
+exchange/exports/*
+exchange/imports/*
+!exchange/exports/.gitkeep
+!exchange/imports/.gitkeep
+
+# Local scratch space
+.scratch/
+
+# Regenerated test caches and local credentials
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.env
+.env.*
+!.env.example
+
+# Local experiments and manuscript figure outputs
+output/
+pytest_tmp*/
+
+# Editor and OS noise
+.idea/
+.vscode/
+Thumbs.db
+
+# Only reviewed data files are versioned.
+/data/*
+!/data/README.md
+!/data/chongqing_reference_rivers.shp
+!/data/chongqing_reference_rivers.shx
+!/data/chongqing_reference_rivers.dbf
+!/data/chongqing_reference_rivers.prj
+!/data/chongqing_reference_rivers.cpg
+!/data/water/
+/data/water/*
+!/data/water/逐时降水_宽表/
+/data/water/逐时降水_宽表/*
+!/data/water/逐时降水_宽表/ERA5_重庆逐时降水_2009.csv
+/native/
+/论文/

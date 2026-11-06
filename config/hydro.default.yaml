@@ -1,0 +1,79 @@
+# Default model settings for a hydro/stability run.
+#
+# The run planner merges this file into each run's config.yaml and then points
+# every path at that run's own managed input directory. Event times, project
+# names and file locations are supplied per run, never read from here.
+
+study_area:
+  domain_source: dem_extent
+  calculation_domain: dem_landuse_intersection
+  partition_source: dem_delineation
+
+rainfall:
+  source_mode: station
+  source_note: "Input station rainfall; hourly IDW and subcatchment area averaging."
+  station_aggregation: idw_subcatchment_area_mean
+  station_idw_power: 2.0
+  station_idw_min_distance_m: 100.0
+  station_idw_resolution_m: 5.0
+  time_column: datetime_beijing
+  value_column: rain_mm
+
+swmm:
+  # Keep GRASS partitions/outlets; solve each land-use response separately.
+  # 'dominant' is retained only for explicit legacy comparisons.
+  landuse_representation: response_units
+  auto_generate_from_gis: true
+  auto_delineate_subcatchments: true
+  delineation_method: grass_watershed
+  # One original basin ID per drainage partition; internal land-use units
+  # share that partition's mandatory unique flow exit.
+  # Multipart geometry alone never creates additional subcatchments.
+  # Same SFD kernel and 20 ha channel threshold as the original Yongchuan project.
+  # Never upsample an input DEM finer than its native resolution.
+  delineation_resolution_m: 5.0
+  grass_maximum_unassigned_fraction: 0.20
+  channel_threshold_ha: 20.0
+  peripheral_channel_threshold_ha: 5.0
+  swmm_model_min_area_ha: 0.0
+  outlet_selection: drainage_exit
+  whole_area_target_unit_ha: 50.0
+  whole_area_min_unit_ha: 5.0
+  channel_node_spacing_m: 100.0
+  delineation_max_subcatchments: 500
+  # These two targets apply only to the optional native D8 method.
+  # GRASS preserves its original basin IDs, without merging toward 500.
+  delineation_target_major_subcatchments: 500
+  delineation_hard_max_subcatchments: 10000
+  delineation_min_area_ha: 10.0
+  # Filter only independent terminal units on the calculation boundary.
+  boundary_fragment_min_area_ha: 1.0
+  boundary_fragment_max_excluded_fraction: 0.01
+  template_inp: null
+  report_step: "0:05:00"
+  wet_step: "0:05:00"
+  dry_step: "1:00:00"
+  routing_step: "0:00:05"
+
+stability:
+  mechanics_model: reference_equation_9
+  parameter_preset: medium
+  use_landuse_zones: true
+  calculation_resolution_m: 5.0
+  deposit_thickness_m: 1.5
+  natural_density_g_cm3: 1.85
+  saturated_density_g_cm3: 2.1
+  water_density_g_cm3: 1.0
+  runoff_density_g_cm3: 1.5
+  friction_velocity_coefficient_a: 0.6
+  # Legacy Yongchuan medium fallback; matched land-use values take precedence.
+  saturated_cohesion_kpa: 6.0
+  saturated_friction_angle_deg: 16.0
+  initial_saturation: 0.35
+
+analysis:
+  oat_levels: 7
+  # Match the legacy Yongchuan analysis: 2,048 base samples, 14,336 evaluations.
+  sobol_base_samples: 2048
+  sobol_bootstrap: 200
+  random_seed: 20260908

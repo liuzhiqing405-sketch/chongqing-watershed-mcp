@@ -1,0 +1,150 @@
+{
+  "$defs": {
+    "EventSpec": {
+      "properties": {
+        "start_datetime": {
+          "title": "Start Datetime",
+          "type": "string"
+        },
+        "end_datetime": {
+          "title": "End Datetime",
+          "type": "string"
+        },
+        "timezone": {
+          "default": "Asia/Shanghai",
+          "title": "Timezone",
+          "type": "string"
+        },
+        "rainfall_source": {
+          "title": "Rainfall Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "start_datetime",
+        "end_datetime",
+        "rainfall_source"
+      ],
+      "title": "EventSpec",
+      "type": "object"
+    },
+    "PackageFile": {
+      "properties": {
+        "role": {
+          "title": "Role",
+          "type": "string"
+        },
+        "relative_path": {
+          "title": "Relative Path",
+          "type": "string"
+        },
+        "sha256": {
+          "maxLength": 64,
+          "minLength": 64,
+          "title": "Sha256",
+          "type": "string"
+        },
+        "size_bytes": {
+          "minimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "role",
+        "relative_path",
+        "sha256",
+        "size_bytes"
+      ],
+      "title": "PackageFile",
+      "type": "object"
+    },
+    "StudyArea": {
+      "properties": {
+        "crs": {
+          "title": "Crs",
+          "type": "string"
+        },
+        "bbox": {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "title": "Bbox",
+          "type": "array"
+        },
+        "area_km2": {
+          "exclusiveMinimum": 0,
+          "title": "Area Km2",
+          "type": "number"
+        }
+      },
+      "required": [
+        "crs",
+        "bbox",
+        "area_km2"
+      ],
+      "title": "StudyArea",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "package_id": {
+      "title": "Package Id",
+      "type": "string"
+    },
+    "created_at": {
+      "title": "Created At",
+      "type": "string"
+    },
+    "event": {
+      "$ref": "#/$defs/EventSpec"
+    },
+    "study_area": {
+      "$ref": "#/$defs/StudyArea"
+    },
+    "files": {
+      "items": {
+        "$ref": "#/$defs/PackageFile"
+      },
+      "title": "Files",
+      "type": "array"
+    },
+    "qa": {
+      "additionalProperties": true,
+      "title": "Qa",
+      "type": "object"
+    },
+    "provenance": {
+      "additionalProperties": true,
+      "title": "Provenance",
+      "type": "object"
+    },
+    "limitations": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Limitations",
+      "type": "array"
+    }
+  },
+  "required": [
+    "package_id",
+    "created_at",
+    "event",
+    "study_area",
+    "files"
+  ],
+  "title": "Model Input Package v1",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chongqing-watershed/model_input_package.schema.json",
+  "description": "Self-contained hand-off between the spatial MCP and the hydro MCP. Every path is relative to the package root, every file carries a SHA-256, and the ERA5 virtual-station caveat must travel with the data. Credentials and absolute paths are rejected."
+}

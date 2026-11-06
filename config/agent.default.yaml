@@ -1,0 +1,116 @@
+# Default configuration for the slope-stability evaluation agent.
+#
+# The agent orchestrates the two MCP servers; it never computes anything itself.
+# An absent file is fine: the agent falls back to built-in defaults that mirror
+# these values, so it starts with no configuration and no LLM key.
+#
+# Resolution order: $SLOPE_AGENT_CONFIG  ->  this file  ->  built-in defaults.
+# The LLM API key is read only from $SLOPE_AGENT_LLM_API_KEY and is never
+# written here, never logged and never stored in a session.
+
+schema_version: 1
+language: zh
+
+mcp:
+  # 两种传输方式对"任务能否活过 CLI"的保证不同，这是本文件最要紧的一处设置：
+  #
+  #   streamable-http  连接到你自己启动的常驻服务。关闭 CLI 只关闭连接，
+  #                    正在跑的水文任务继续在服务里执行 —— **长任务用这个**。
+  #                    启动服务：scripts/start_mcp_services.ps1
+  #                    健康检查：scripts/check_mcp_services.ps1
+  #
+  #   stdio            由本进程启动服务，作为它的子进程。零配置可用，适合短流程、
+  #                    交互式试用和测试，但**没有**跨进程存活的保证：本进程退出会
+  #                    终止服务，worker 也随之终止。这里保留它是为了兼容与测试，
+  #                    不作为生产长任务的运行方式。
+  #
+  # 下面的默认值是 stdio，好让没有任何配置、也没起服务的环境仍能启动。要跑真实
+  # 长任务，请把下面的 transport 改成 streamable-http、url 指向常驻服务地址。
+  spatial:
+    transport: stdio
+    # transport=streamable-http 时必填，且默认只允许本机地址。
+    # 常驻服务示例：url: http://127.0.0.1:8765/mcp
+    url: null
+    # command/args/cwd 只在 transport=stdio 时使用，默认当前解释器、下面的模块
+    # 和仓库根目录，因此本文件里不需要写任何本机路径。
+    command: null
+    args: ["-m", "chongqing_spatial_mcp.server"]
+    cwd: null
+    # startup_timeout_s 包住完整握手与初始化，不是只包住某一次读取。
+    startup_timeout_s: 30
+    # 划分阶段会在服务内部做自适应窗口重试（触界就放大重划），一次调用
+    # 可能是数分钟而不是数十秒，所以这里比另一个服务宽松。
+    call_timeout_s: 1200
+    handshake_retries: 2
+  hydro:
+    transport: stdio
+    # 常驻服务示例：url: http://127.0.0.1:8766/mcp
+    url: null
+    command: null
+    args: ["-m", "watershed_hydro_mcp.server"]
+    cwd: null
+    startup_timeout_s: 30
+    call_timeout_s: 180
+    handshake_retries: 2
+
+sessions:
+  # Relative to the repository root; runs/ is excluded from version control.
+  root: runs/agent/sessions
+  max_conversation_turns: 20
+  max_text_chars_per_turn: 2000
+  max_event_payload_chars: 4000
+
+polling:
+  # Long jobs are polled with backoff rather than on every user turn.
+  initial_interval_s: 5
+  maximum_interval_s: 30
+  backoff_factor: 1.5
+  # A single blocking wait gives up after this; the hydro job keeps running.
+  maximum_wait_s: 1800
+
+download:
+  # 一次下载的上限（策略）：超过就拒绝，不读取、不截断。
+  max_file_bytes: 1073741824          # 1 GiB
+  # 传输通道的分界（不是策略）：不大于此值的文件走 MCP 资源通道（一条消息带回整份
+  # 文件，stdio 下实测约 0.5 s/MB）；更大的文件由同机适配器从磁盘流式读取，路径只
+  # 存在于 Agent 进程内部，任何面向浏览器的响应、会话文件与日志都不含路径。
+  resource_read_limit_bytes: 4194304  # 4 MiB
+  # 流式返回给浏览器的分块大小。
+  chunk_bytes: 1048576                # 1 MiB
+
+dialogue:
+  # 对话层做什么：把自然语言（含模糊说法）落到四类路由之一——
+  # workflow_action（执行已有工作流）/ clarification（问一个最关键的问题）/
+  # knowledge_chat（回答概念与能力问题）/ out_of_scope（说明能力边界）。
+  #
+  # 配置模型后，普通输入先由模型判断提问还是任务；规则负责显式确认/拒绝/取消
+  # 和实体校验，状态机管执行。数值成果只来自 MCP；关掉 enabled 回退规则。
+  enabled: true
+  # 达到了工作流要求的完整实体且本地校验通过，才允许执行。
+  workflow_confidence_threshold: 0.85
+  # 低于此值不做任何猜测，只追问。
+  clarification_confidence_threshold: 0.55
+  # 路由器能看到最近多少轮对话。有上限，避免长对话把提示词无限撑大。
+  recent_turns: 8
+  allow_general_chat: true
+  # 配置可用模型后，直接回答泛工程知识；不调用 MCP、不修改计算状态。
+  allow_general_llm: true
+  allow_out_of_scope_reply: true
+
+llm:
+  # 计算流程可不配置模型，使用确定性规则；开放式工程知识问答需要可用模型。
+  # 配置后用于路由与实体候选、计算回复的受控改写，以及独立的泛工程知识问答。
+  # 它不能替用户确认/拒绝/取消、凭空补计算输入、调用工具或伪造本次成果与 QA；
+  # 泛工程知识回答允许理论公式与假设示例数值，须与实际成果分开标明来源。
+  # 改写结果在返回前还要通过数值/单位/禁语/泄露审计，不过则回退确定性原文。
+  # 密钥只从 $SLOPE_AGENT_LLM_API_KEY 读取，永远不写进本文件。
+  # null means "enabled when base_url and model are both configured".
+  # Set false to force the deterministic path even when a key is present.
+  enabled: null
+  base_url: null
+  model: null
+  temperature: 0
+  maximum_tokens: 1200
+  deepseek_thinking: disabled
+  request_timeout_s: 60
+  max_retries: 1

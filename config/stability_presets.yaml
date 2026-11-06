@@ -1,0 +1,52 @@
+# Slope-stability parameter presets.
+#
+# "medium" matches the legacy Yongchuan medium fallback parameters. "low"
+# uses its failure-prone combination and "high" its stronger combination.
+# These are scenario assumptions, not field-calibrated parameter sets.
+# Matched land-use classes keep their own parameter table; these mechanical
+# values apply to uniform calculations and unmatched classes. A run may
+# override individual values; the planner writes the selected values per run.
+
+presets:
+  low:
+    deposit_thickness_m: 2.0
+    natural_density_g_cm3: 1.85
+    saturated_density_g_cm3: 2.10
+    saturated_cohesion_kpa: 3.0
+    saturated_friction_angle_deg: 14.0
+    initial_saturation: 0.50
+    friction_velocity_coefficient_a: 0.6
+    runoff_density_g_cm3: 1.5
+
+  medium:
+    deposit_thickness_m: 1.5
+    natural_density_g_cm3: 1.85
+    saturated_density_g_cm3: 2.10
+    saturated_cohesion_kpa: 6.0
+    saturated_friction_angle_deg: 16.0
+    initial_saturation: 0.35
+    friction_velocity_coefficient_a: 0.6
+    runoff_density_g_cm3: 1.5
+
+  high:
+    deposit_thickness_m: 1.0
+    natural_density_g_cm3: 1.85
+    saturated_density_g_cm3: 2.10
+    saturated_cohesion_kpa: 12.0
+    saturated_friction_angle_deg: 18.0
+    initial_saturation: 0.20
+    friction_velocity_coefficient_a: 0.6
+    runoff_density_g_cm3: 1.5
+
+#: Bounds a run may override within, so a client cannot push a parameter into
+#: a physically meaningless range.
+bounds:
+  deposit_thickness_m: [0.2, 5.0]
+  natural_density_g_cm3: [1.2, 2.4]
+  saturated_density_g_cm3: [1.4, 2.6]
+  saturated_cohesion_kpa: [0.0, 60.0]
+  saturated_friction_angle_deg: [5.0, 40.0]
+  initial_saturation: [0.0, 1.0]
+  friction_velocity_coefficient_a: [0.3, 1.0]
+  runoff_density_g_cm3: [1.0, 2.0]
+  calculation_resolution_m: [1.0, 100.0]

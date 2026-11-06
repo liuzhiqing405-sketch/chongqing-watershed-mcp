@@ -1,0 +1,63 @@
+# DeepSeek profile for the slope-evaluation agent.
+#
+# The API key deliberately does not belong in this file.  Set it only in the
+# process environment immediately before a live smoke test:
+#   $env:SLOPE_AGENT_LLM_API_KEY = "..."
+# Then select this profile:
+#   $env:SLOPE_AGENT_CONFIG = "config/agent.deepseek.yaml"
+
+schema_version: 1
+language: zh
+
+mcp:
+  spatial:
+    transport: streamable-http
+    url: http://127.0.0.1:8765/mcp
+    startup_timeout_s: 30
+    # 划分会在服务内部做自适应窗口重试（触界就放大重划），一次调用可能
+    # 是数分钟而不是数十秒。
+    call_timeout_s: 1200
+    handshake_retries: 2
+  hydro:
+    transport: streamable-http
+    url: http://127.0.0.1:8766/mcp
+    startup_timeout_s: 30
+    call_timeout_s: 180
+    handshake_retries: 2
+
+sessions:
+  root: runs/agent/sessions
+  max_conversation_turns: 20
+  max_text_chars_per_turn: 2000
+  max_event_payload_chars: 4000
+
+polling:
+  initial_interval_s: 5
+  maximum_interval_s: 30
+  backoff_factor: 1.5
+  maximum_wait_s: 1800
+
+dialogue:
+  # 普通消息先由模型结合上下文判断提问还是任务，再落到四类路由。
+  # 规则负责实体校验与显式确认/拒绝/取消，不以河名或关键词抢先执行。
+  # enabled 控制模型路由；allow_general_llm 独立控制工程知识回答。
+  enabled: true
+  workflow_confidence_threshold: 0.85
+  clarification_confidence_threshold: 0.55
+  recent_turns: 16
+  allow_general_chat: true
+  allow_general_llm: true
+  allow_out_of_scope_reply: true
+
+llm:
+  provider: deepseek
+  enabled: null
+  base_url: https://api.deepseek.com
+  model: deepseek-flash
+  temperature: 0
+  maximum_tokens: 4096
+  # 显式关闭默认思考模式，避免短 JSON 请求的预算消耗在 reasoning_content 上。
+  deepseek_thinking: disabled
+  request_timeout_s: 60
+  max_retries: 1
+  json_mode: true

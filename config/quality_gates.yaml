@@ -1,0 +1,34 @@
+# Quality gates.
+#
+# A run that finishes computing but fails any gate ends as ``qa_failed``, which
+# is never reported as success. Gates are deliberately conservative: they flag
+# results that must not be read as a validated hazard assessment.
+
+spatial:
+  minimum_basin_area_km2: 1.8
+  maximum_single_cell_subcatchment_fraction: 0.35
+  minimum_coverage_fraction: 0.80
+  maximum_fill_above_1m_fraction: 0.25
+  maximum_fill_depth_m: 50.0
+
+rainfall:
+  # Single-source runs are supported with an explicit uniform-rain assumption.
+  minimum_stations: 1
+  minimum_timestamps: 2
+  maximum_timestamps: 247            # DBF field limit of the station package
+  maximum_hourly_rain_mm: 200.0
+  minimum_total_rain_mm: 0.1
+
+swmm:
+  maximum_continuity_error_percent: 10.0
+  maximum_flow_routing_error_percent: 10.0
+  require_outfalls: true
+  minimum_subcatchments: 1
+
+stability:
+  maximum_safety_factor: 100.0
+  minimum_valid_cell_fraction: 0.10
+  maximum_unstable_fraction: 0.95
+
+export:
+  minimum_artifacts: 5
